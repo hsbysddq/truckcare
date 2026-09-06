@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Bot, Image as ImageIcon } from "lucide-react";
 import {
   complaintStatusMeta,
@@ -6,8 +9,26 @@ import {
 } from "@/lib/content";
 import SpeedEvidenceChart from "@/components/dashboard/SpeedEvidenceChart";
 
-export default function ComplaintDetailPanel({ complaint }) {
+export default function ComplaintDetailPanel({ complaint, onStatusChange }) {
   const copy = pengaduanManagementPage;
+  const [memproses, setMemproses] = useState(null);
+
+  async function kirimStatus(status) {
+    if (!complaint || memproses) return;
+    setMemproses(status);
+    try {
+      const res = await fetch(`/api/complaints/${complaint.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) onStatusChange?.(complaint.id, status);
+    } catch {
+      // Gagal jaringan, biarkan status lama.
+    } finally {
+      setMemproses(null);
+    }
+  }
 
   if (!complaint) {
     return (
@@ -17,8 +38,10 @@ export default function ComplaintDetailPanel({ complaint }) {
     );
   }
 
-  const status = complaintStatusMeta[complaint.status];
-  const confidence = agentConfidenceMeta[complaint.agentConfidence];
+  const status = complaintStatusMeta[complaint.status] ?? complaintStatusMeta.pending;
+  const confidence = agentConfidenceMeta[complaint.agentConfidence] ?? agentConfidenceMeta.rendah;
+  const findings = complaint.agentFindings ?? [];
+  const punyaBukti = (complaint.speedSeries?.length ?? 0) > 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -53,18 +76,20 @@ export default function ComplaintDetailPanel({ complaint }) {
           </span>
         </div>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          {complaint.agentReasoning}
+          {complaint.agentReasoning ?? "Belum ada analisis AI untuk laporan ini."}
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {complaint.agentFindings.map((finding) => (
+        {findings.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {findings.map((finding) => (
             <span
               key={finding}
               className="inline-flex items-center rounded-full border border-accent/30 bg-white px-3 py-1.5 text-xs font-medium text-accent"
             >
               {finding}
             </span>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-6">
@@ -73,11 +98,17 @@ export default function ComplaintDetailPanel({ complaint }) {
         </h3>
         <p className="mt-1 text-xs text-slate-500">{copy.chart.subtitle}</p>
         <div className="mt-4">
-          <SpeedEvidenceChart
-            speedSeries={complaint.speedSeries}
-            speedLimit={complaint.speedLimit}
-            incidentLabel={copy.chart.incidentLabel}
-          />
+          {punyaBukti ? (
+            <SpeedEvidenceChart
+              speedSeries={complaint.speedSeries}
+              speedLimit={complaint.speedLimit}
+              incidentLabel={copy.chart.incidentLabel}
+            />
+          ) : (
+            <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-400">
+              Belum ada data telematika untuk laporan ini.
+            </p>
+          )}
         </div>
       </div>
 
@@ -96,13 +127,13 @@ export default function ComplaintDetailPanel({ complaint }) {
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{copy.vehicleInfo.typeLabel}</dt>
               <dd className="font-medium text-slate-900">
-                {complaint.vehicleType}
+                {complaint.vehicleType ?? "-"}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{copy.vehicleInfo.driverLabel}</dt>
               <dd className="font-medium text-slate-900">
-                {complaint.driverName}
+                {complaint.driverName ?? "-"}
               </dd>
             </div>
           </dl>
@@ -118,7 +149,7 @@ export default function ComplaintDetailPanel({ complaint }) {
                 {copy.telemetryInfo.recordedSpeedLabel}
               </dt>
               <dd className="font-medium text-slate-900">
-                {complaint.recordedSpeed} km/jam
+                {complaint.recordedSpeed ?? "-"} km/jam
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3">
@@ -126,7 +157,7 @@ export default function ComplaintDetailPanel({ complaint }) {
                 {copy.telemetryInfo.speedLimitLabel}
               </dt>
               <dd className="font-medium text-slate-900">
-                {complaint.speedLimit} km/jam
+                {complaint.speedLimit ?? "-"} km/jam
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3">
@@ -134,8 +165,9 @@ export default function ComplaintDetailPanel({ complaint }) {
                 {copy.telemetryInfo.coordinatesLabel}
               </dt>
               <dd className="font-medium text-slate-900">
-                {complaint.coordinates.lat.toFixed(4)},{" "}
-                {complaint.coordinates.lng.toFixed(4)}
+                {complaint.coordinates
+                  ? `${complaint.coordinates.lat.toFixed(4)}, ${complaint.coordinates.lng.toFixed(4)}`
+                  : "-"}
               </dd>
             </div>
           </dl>
@@ -170,15 +202,19 @@ export default function ComplaintDetailPanel({ complaint }) {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
-          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          disabled={memproses !== null}
+          onClick={() => kirimStatus("ditolak")}
+          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
         >
-          {copy.rejectButtonLabel}
+          {memproses === "ditolak" ? "Memproses..." : copy.rejectButtonLabel}
         </button>
         <button
           type="button"
-          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-slate-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+          disabled={memproses !== null}
+          onClick={() => kirimStatus("tervalidasi")}
+          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-slate-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
         >
-          {copy.validateButtonLabel}
+          {memproses === "tervalidasi" ? "Memproses..." : copy.validateButtonLabel}
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { getTrucks, getTruckHistory } from "@/lib/data";
 import { overviewPage } from "@/lib/content";
@@ -17,13 +17,28 @@ const TruckMap = dynamic(() => import("@/components/dashboard/TruckMap"), {
 });
 
 export default function DashboardOverviewPage() {
-  const trucks = getTrucks();
+  // Dummy dulu biar langsung tampil, timpa dengan data live kalau API balas.
+  const [trucks, setTrucks] = useState(() => getTrucks());
   const [selectedTruckId, setSelectedTruckId] = useState(
     trucks[0]?.id ?? null
   );
 
+  useEffect(() => {
+    let batal = false;
+    fetch("/api/trucks", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
+        if (!batal && Array.isArray(data)) setTrucks(data);
+      })
+      .catch(() => {});
+    return () => {
+      batal = true;
+    };
+  }, []);
+
   const selectedTruck =
-    trucks.find((truck) => truck.id === selectedTruckId) ?? null;
+    trucks.find((truck) => truck.id === selectedTruckId) ?? trucks[0] ?? null;
   const history = selectedTruck ? getTruckHistory(selectedTruck.id) : null;
 
   const counts = {
