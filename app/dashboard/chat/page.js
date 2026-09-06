@@ -17,7 +17,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   async function handleSend(text) {
     setMessages((prev) => [
