@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { getComplaints } from "@/lib/data";
 import { pengaduanManagementPage } from "@/lib/content";
@@ -8,10 +8,29 @@ import ComplaintCard from "@/components/dashboard/ComplaintCard";
 import ComplaintDetailPanel from "@/components/dashboard/ComplaintDetailPanel";
 
 export default function DashboardPengaduanPage() {
-  const complaints = getComplaints();
+  const [complaints, setComplaints] = useState(() => getComplaints());
   const [activeFilter, setActiveFilter] = useState("semua");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(complaints[0]?.id ?? null);
+
+  useEffect(() => {
+    let batal = false;
+    fetch("/api/complaints", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
+        if (!batal && Array.isArray(data)) {
+          setComplaints(data);
+          setSelectedId((sekarang) =>
+            data.some((c) => c.id === sekarang) ? sekarang : (data[0]?.id ?? null)
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      batal = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -27,7 +46,13 @@ export default function DashboardPengaduanPage() {
     });
   }, [complaints, activeFilter, query]);
 
-  const selected = complaints.find((c) => c.id === selectedId) ?? null;
+  const selected = complaints.find((c) => c.id === selectedId) ?? complaints[0] ?? null;
+
+  function handleStatusChange(id, status) {
+    setComplaints((sebelum) =>
+      sebelum.map((c) => (c.id === id ? { ...c, status } : c))
+    );
+  }
 
   return (
     <div>
@@ -94,7 +119,7 @@ export default function DashboardPengaduanPage() {
           </div>
         </div>
 
-        <ComplaintDetailPanel complaint={selected} />
+        <ComplaintDetailPanel complaint={selected} onStatusChange={handleStatusChange} />
       </div>
     </div>
   );

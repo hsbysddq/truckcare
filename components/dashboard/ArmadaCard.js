@@ -2,7 +2,8 @@ import { Route, Gauge } from "lucide-react";
 import { armadaPage, tripStatusMeta } from "@/lib/content";
 
 export default function ArmadaCard({ name, truck }) {
-  const status = tripStatusMeta[truck.tripStatus];
+  // Data live belum tentu berisi tripStatus yang dikenal, jatuhkan ke berhenti.
+  const status = tripStatusMeta[truck.tripStatus] ?? tripStatusMeta.berhenti;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">

@@ -1,9 +1,19 @@
 import { getTrucks } from "@/lib/data";
+import { getTrucksShape } from "@/lib/supabase";
 import { armadaPage } from "@/lib/content";
 import ArmadaCard from "@/components/dashboard/ArmadaCard";
 
-export default function ArmadaPage() {
-  const trucks = getTrucks();
+// Server: baca Supabase langsung, gagal (env kosong / offline) pakai dummy.
+async function muatTruk() {
+  try {
+    return await getTrucksShape();
+  } catch {
+    return getTrucks();
+  }
+}
+
+export default async function ArmadaPage() {
+  const trucks = await muatTruk();
 
   return (
     <div>

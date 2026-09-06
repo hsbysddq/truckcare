@@ -2,8 +2,8 @@ import { MapPin, Truck } from "lucide-react";
 import { complaintStatusMeta, agentConfidenceMeta } from "@/lib/content";
 
 export default function ComplaintCard({ complaint, active, onSelect }) {
-  const status = complaintStatusMeta[complaint.status];
-  const confidence = agentConfidenceMeta[complaint.agentConfidence];
+  const status = complaintStatusMeta[complaint.status] ?? complaintStatusMeta.pending;
+  const confidence = agentConfidenceMeta[complaint.agentConfidence] ?? agentConfidenceMeta.rendah;
 
   return (
     <button
@@ -27,7 +27,7 @@ export default function ComplaintCard({ complaint, active, onSelect }) {
           </span>
         </div>
         <span className="flex-none text-xs text-slate-400">
-          {complaint.relativeTime}
+          {complaint.relativeTime ?? complaint.incidentAt}
         </span>
       </div>
 
