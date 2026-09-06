@@ -16,8 +16,8 @@ export default function ChatPage() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, isTyping]);
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [messages]);
 
   async function handleSend(text) {
     setMessages((prev) => [

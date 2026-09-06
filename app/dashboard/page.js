@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { getTrucks, getTruckHistory } from "@/lib/data";
 import { overviewPage } from "@/lib/content";
@@ -37,16 +37,25 @@ export default function DashboardOverviewPage() {
     };
   }, []);
 
-  const selectedTruck =
-    trucks.find((truck) => truck.id === selectedTruckId) ?? trucks[0] ?? null;
-  const history = selectedTruck ? getTruckHistory(selectedTruck.id) : null;
+  const selectedTruck = useMemo(
+    () =>
+      trucks.find((truck) => truck.id === selectedTruckId) ?? trucks[0] ?? null,
+    [trucks, selectedTruckId]
+  );
+  const history = useMemo(
+    () => (selectedTruck ? getTruckHistory(selectedTruck.id) : null),
+    [selectedTruck]
+  );
 
-  const counts = {
-    total: trucks.length,
-    bergerak: trucks.filter((truck) => truck.status === "bergerak").length,
-    istirahat: trucks.filter((truck) => truck.status === "istirahat").length,
-    insiden: trucks.filter((truck) => truck.status === "insiden").length,
-  };
+  const counts = useMemo(
+    () => ({
+      total: trucks.length,
+      bergerak: trucks.filter((truck) => truck.status === "bergerak").length,
+      istirahat: trucks.filter((truck) => truck.status === "istirahat").length,
+      insiden: trucks.filter((truck) => truck.status === "insiden").length,
+    }),
+    [trucks]
+  );
 
   return (
     <div className="space-y-8">
