@@ -31,7 +31,7 @@ export default function Hero() {
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
           <a
             href={hero.primaryCta.href}
-            className="rounded-full bg-accent px-7 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-black/20 transition-colors hover:bg-accent-dark"
+            className="rounded-full bg-cta px-7 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-black/20 transition-colors hover:bg-cta-dark"
           >
             {hero.primaryCta.label}
           </a>

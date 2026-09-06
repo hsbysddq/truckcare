@@ -39,7 +39,7 @@ export default function SpeedingByPlateChart({ data }) {
             contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0", fontSize: 12 }}
             formatter={(value) => [`${value} insiden`, "Jumlah"]}
           />
-          <Bar dataKey="count" fill="#0b2c5e" radius={[0, 6, 6, 0]} barSize={22} />
+          <Bar dataKey="count" fill="#1b4f9c" radius={[0, 6, 6, 0]} barSize={22} />
         </BarChart>
       </ResponsiveContainer>
     </div>

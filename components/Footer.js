@@ -1,4 +1,4 @@
-import { Truck } from "lucide-react";
+import Image from "next/image";
 import { footer } from "@/lib/content";
 import FadeIn from "@/components/FadeIn";
 
@@ -6,13 +6,26 @@ export default function Footer() {
   return (
     <footer className="bg-slate-950">
       <FadeIn as="div" className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
-        <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <div className="flex items-center gap-2 text-lg font-semibold text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-white">
-                <Truck className="h-5 w-5" strokeWidth={2} />
+        <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-1">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-lg bg-white">
+                <Image
+                  src="/logo.png"
+                  alt={footer.brand.name}
+                  width={36}
+                  height={36}
+                  className="h-full w-full object-contain"
+                />
               </span>
-              {footer.brand.name}
+              <span className="flex flex-col leading-tight">
+                <span className="text-base font-bold tracking-tight text-white">
+                  {footer.brand.name}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
+                  {footer.brand.tagline}
+                </span>
+              </span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/50">
               {footer.brand.description}

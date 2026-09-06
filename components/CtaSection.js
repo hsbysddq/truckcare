@@ -14,7 +14,7 @@ export default function CtaSection() {
         <div className="mt-10">
           <a
             href={ctaSection.button.href}
-            className="inline-block rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-accent shadow-lg shadow-black/10 transition-colors hover:bg-slate-100"
+            className="inline-block rounded-full bg-cta px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-black/20 transition-colors hover:bg-cta-dark"
           >
             {ctaSection.button.label}
           </a>

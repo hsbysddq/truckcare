@@ -72,9 +72,9 @@ export default function SpeedEvidenceChart({
           <Line
             type="monotone"
             dataKey="speedKph"
-            stroke="#0b2c5e"
+            stroke="#1b4f9c"
             strokeWidth={2.5}
-            dot={{ r: 3, fill: "#0b2c5e" }}
+            dot={{ r: 3, fill: "#1b4f9c" }}
             activeDot={{ r: 5 }}
           />
           <ReferenceDot

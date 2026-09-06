@@ -4,9 +4,13 @@
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
-  --accent: #0b2c5e;
-  --accent-dark: #081d3f;
-  --accent-tint: #eaf0fa;
+  --accent: #1b4f9c;
+  --accent-dark: #143b75;
+  --accent-light: #29a0e0;
+  --accent-tint: #eaf1fb;
+  --cta: #f4711f;
+  --cta-light: #f9a11b;
+  --cta-dark: #d95f10;
 }
 
 @theme inline {
@@ -14,7 +18,11 @@
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
+  --color-accent-light: var(--accent-light);
   --color-accent-tint: var(--accent-tint);
+  --color-cta: var(--cta);
+  --color-cta-light: var(--cta-light);
+  --color-cta-dark: var(--cta-dark);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

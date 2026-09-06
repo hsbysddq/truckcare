@@ -18,22 +18,22 @@ export default function FeaturesSection() {
           </p>
         </FadeIn>
 
-        <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {featuresSection.items.map((item, index) => {
             const Icon = iconMap[item.icon];
             return (
               <FadeIn
                 key={item.title}
                 delay={index * 100}
-                className="rounded-2xl bg-slate-50 p-10 transition-colors hover:bg-accent-tint"
+                className="rounded-2xl bg-slate-50 p-8 transition-colors hover:bg-accent-tint"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-white">
-                  <Icon className="h-7 w-7" strokeWidth={1.75} />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-white">
+                  <Icon className="h-6 w-6" strokeWidth={1.75} />
                 </div>
-                <h3 className="mt-8 text-xl font-semibold text-slate-900">
+                <h3 className="mt-6 text-lg font-semibold text-slate-900">
                   {item.title}
                 </h3>
-                <p className="mt-3 text-base leading-relaxed text-slate-500">
+                <p className="mt-3 text-sm leading-relaxed text-slate-500">
                   {item.description}
                 </p>
               </FadeIn>

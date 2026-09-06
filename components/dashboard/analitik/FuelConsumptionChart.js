@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 const LINE_COLORS = [
-  "#0b2c5e",
+  "#1b4f9c",
   "#059669",
   "#d97706",
   "#dc2626",
