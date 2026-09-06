@@ -9,7 +9,7 @@ import { truckStatusMeta } from "@/lib/content";
 const SURABAYA_CENTER = [-7.3, 112.72];
 
 function createTruckIcon(status, isSelected) {
-  const meta = truckStatusMeta[status];
+  const meta = truckStatusMeta[status] ?? truckStatusMeta.istirahat;
   const size = isSelected ? 40 : 32;
   const svg = renderToStaticMarkup(
     <Truck color="#ffffff" size={Math.round(size * 0.5)} strokeWidth={2} />
@@ -35,6 +35,10 @@ function createTruckIcon(status, isSelected) {
 }
 
 export default function TruckMap({ trucks, selectedTruckId, onSelectTruck }) {
+  // Truk tanpa koordinat (mis. belum ada posisi di Supabase) tidak dipetakan.
+  const terpeta = trucks.filter(
+    (truck) => Number.isFinite(truck.lat) && Number.isFinite(truck.lng)
+  );
   return (
     <MapContainer
       center={SURABAYA_CENTER}
@@ -46,7 +50,7 @@ export default function TruckMap({ trucks, selectedTruckId, onSelectTruck }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {trucks.map((truck) => (
+      {terpeta.map((truck) => (
         <Marker
           key={truck.id}
           position={[truck.lat, truck.lng]}

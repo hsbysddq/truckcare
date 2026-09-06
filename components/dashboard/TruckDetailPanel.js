@@ -12,7 +12,7 @@ export default function TruckDetailPanel({ truck, history }) {
     );
   }
 
-  const status = truckStatusMeta[truck.status];
+  const status = truckStatusMeta[truck.status] ?? truckStatusMeta.istirahat;
   const speedPoints = history?.speedHistory ?? [];
   const maxSpeed = Math.max(...speedPoints.map((point) => point.speedKph), 1);
 
@@ -24,32 +24,32 @@ export default function TruckDetailPanel({ truck, history }) {
         >
           {status.label}
         </span>
-        <span className="text-xs text-slate-400">{truck.lastUpdate}</span>
+        <span className="text-xs text-slate-400">{truck.lastUpdate ?? "-"}</span>
       </div>
 
       <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900">
         {truck.plateNumber}
       </h3>
-      <p className="text-sm text-slate-500">{truck.model}</p>
+      <p className="text-sm text-slate-500">{truck.model ?? "-"}</p>
 
       <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
         <div>
           <dt className="text-slate-400">{detailPanel.driverLabel}</dt>
           <dd className="mt-1 font-medium text-slate-900">
-            {truck.driverName}
+            {truck.driverName ?? "-"}
           </dd>
         </div>
         <div>
           <dt className="text-slate-400">{detailPanel.speedLabel}</dt>
           <dd className="mt-1 font-medium text-slate-900">
-            {truck.speedKph} {detailPanel.speedUnit}
+            {truck.speedKph ?? 0} {detailPanel.speedUnit}
           </dd>
         </div>
       </dl>
 
       <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
         <Fuel className="h-4 w-4 flex-none" strokeWidth={1.75} />
-        {detailPanel.fuelLabel}: {truck.fuelLevelPct}%
+        {detailPanel.fuelLabel}: {truck.fuelLevelPct ?? "-"}%
       </div>
 
       <div className="mt-6">
