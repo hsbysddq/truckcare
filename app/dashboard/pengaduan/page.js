@@ -18,7 +18,8 @@ export default function DashboardPengaduanPage() {
     fetch("/api/complaints", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!batal && Array.isArray(data) && data.length > 0) {
+        // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
+        if (!batal && Array.isArray(data)) {
           setComplaints(data);
           setSelectedId((sekarang) =>
             data.some((c) => c.id === sekarang) ? sekarang : (data[0]?.id ?? null)

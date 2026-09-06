@@ -12,10 +12,13 @@ if (!token) {
   process.exit(1);
 }
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Isi SUPABASE_URL & SUPABASE_SERVICE_ROLE_KEY di telegram/.env');
+  process.exit(1);
+}
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const bot = new TelegramBot(token, { polling: true });
 
@@ -40,7 +43,7 @@ async function statusArmada() {
     if (!truk) continue;
     const status = p.status === 'jalan' ? 'jalan' : 'berhenti';
     const tujuan = trip?.tujuan ?? '?';
-    baris.push(`• ${truk.nama} (${truk.plat}): ${status}, menuju ${tujuan}, ${p.kecepatan.toFixed(0)} km/jam`);
+    baris.push(`• ${truk.nama} (${truk.plat}): ${status}, menuju ${tujuan}, ${Number(p.kecepatan ?? 0).toFixed(0)} km/jam`);
   }
   return baris.length ? `Status armada:\n${baris.join('\n')}` : 'Belum ada data posisi.';
 }

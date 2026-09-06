@@ -28,7 +28,8 @@ export default function DashboardOverviewPage() {
     fetch("/api/trucks", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!batal && Array.isArray(data) && data.length > 0) setTrucks(data);
+        // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
+        if (!batal && Array.isArray(data)) setTrucks(data);
       })
       .catch(() => {});
     return () => {

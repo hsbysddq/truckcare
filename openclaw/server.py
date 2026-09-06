@@ -55,10 +55,11 @@ def jalankan(argumen, timeout):
         return None, "", "skrip kehabisan waktu"
     baris_err = (selesai.stderr or "").strip().splitlines()
     # detail hanya di log service, ke klien pesan generik (jangan bocorkan env/URL/kunci)
-    sys.stderr.write(
-        "skrip gagal rc=%d: %s\n"
-        % (selesai.returncode, baris_err[-1] if baris_err else "-")
-    )
+    if selesai.returncode != 0:
+        sys.stderr.write(
+            "skrip gagal rc=%d: %s\n"
+            % (selesai.returncode, baris_err[-1] if baris_err else "-")
+        )
     return (
         selesai.returncode,
         (selesai.stdout or "").strip(),

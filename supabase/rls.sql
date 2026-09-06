@@ -47,6 +47,19 @@ create policy "chat_tulis_service" on chat_logs for all using (auth.role() = 'se
 
 -- ---------- REALTIME ----------
 -- Aktifkan Realtime untuk tabel positions & events supaya peta bisa subscribe.
-alter publication supabase_realtime add table positions;
-alter publication supabase_realtime add table events;
-alter publication supabase_realtime add table trips;
+-- Bungkus DO block supaya aman di-rerun (add table tidak idempotent).
+do $$
+begin
+  alter publication supabase_realtime add table positions;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table events;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table trips;
+exception when duplicate_object then null;
+end $$;

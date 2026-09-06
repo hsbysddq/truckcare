@@ -56,7 +56,6 @@ def main():
 
     uji = {
         "plat": "DK 0000 ZZ",
-        "tanggal": "2026-09-06",
         "deskripsi": "[UJI OTOMATIS verify.py, aman dihapus]",
     }
     kode, dibuat = panggil("POST", "pengaduan", ANON, "", uji, "return=representation")

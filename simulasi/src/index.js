@@ -47,13 +47,16 @@ function kmPerMenit() {
 
 async function initTrips() {
   // Buat/sambungkan trips di awal. Untuk MVP: upsert per plat supaya id stabil.
+  // Nama deterministik Truk 1..N ikut urutan RUTE (sama dengan seed.sql).
+  let nomor = 1;
   for (const [plat, st] of trukState) {
-    // ignoreDuplicates: nama seed ("Truk N") tidak ditimpa tiap run.
+    const nama = `Truk ${nomor++}`;
+    // ignoreDuplicates: nama seed tidak ditimpa tiap run.
     // (upsert yang diabaikan tidak mengembalikan baris, jadi select terpisah)
     {
       const { error: errUp } = await supabase
         .from('trucks')
-        .upsert({ plat, nama: `Truk ${plat}`, tipe: 'distribusi' }, { onConflict: 'plat', ignoreDuplicates: true });
+        .upsert({ plat, nama, tipe: 'distribusi' }, { onConflict: 'plat', ignoreDuplicates: true });
       if (errUp) throw errUp;
     }
     const { data: truk, error: errTruk } = await supabase
