@@ -1,10 +1,8 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import CaraKerjaSection from "@/components/CaraKerjaSection";
-import IndustriesSection from "@/components/IndustriesSection";
-import FeaturesSection from "@/components/FeaturesSection";
-import DashboardPreviewSection from "@/components/DashboardPreviewSection";
-import ArchitectureSection from "@/components/ArchitectureSection";
+import ProductPreviewSection from "@/components/ProductPreviewSection";
+import HowItWorksSection from "@/components/HowItWorksSection";
+import WhySection from "@/components/WhySection";
 import CtaSection from "@/components/CtaSection";
 import Footer from "@/components/Footer";
 
@@ -14,11 +12,9 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
-        <CaraKerjaSection />
-        <IndustriesSection />
-        <FeaturesSection />
-        <DashboardPreviewSection />
-        <ArchitectureSection />
+        <ProductPreviewSection />
+        <HowItWorksSection />
+        <WhySection />
         <CtaSection />
       </main>
       <Footer />

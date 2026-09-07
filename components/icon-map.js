@@ -1,12 +1,6 @@
 import {
-  Package,
   Truck,
-  Pickaxe,
-  HardHat,
-  Radar,
   ClipboardCheck,
-  Send,
-  Cpu,
   Gauge,
   LayoutDashboard,
   Bot,
@@ -32,14 +26,8 @@ import {
 } from "lucide-react";
 
 export const iconMap = {
-  package: Package,
   truck: Truck,
-  pickaxe: Pickaxe,
-  "hard-hat": HardHat,
-  radar: Radar,
   "clipboard-check": ClipboardCheck,
-  send: Send,
-  cpu: Cpu,
   gauge: Gauge,
   "layout-dashboard": LayoutDashboard,
   bot: Bot,

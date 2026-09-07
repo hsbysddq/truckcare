@@ -1,21 +1,10 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 import { Truck } from "lucide-react";
 import { siteConfig, footer, loginPage } from "@/lib/content";
+import LoginForm from "@/components/LoginForm";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleSubmit(event) {
-    event.preventDefault();
-    setSubmitting(true);
-    router.push("/dashboard");
-  }
-
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <div className="flex flex-1 items-center justify-center bg-white px-6 py-16">
@@ -35,51 +24,9 @@ export default function LoginPage() {
           </h1>
           <p className="mt-2 text-sm text-slate-500">{loginPage.subheading}</p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-slate-700"
-              >
-                {loginPage.emailLabel}
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                placeholder={loginPage.emailPlaceholder}
-                className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-700"
-              >
-                {loginPage.passwordLabel}
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                placeholder={loginPage.passwordPlaceholder}
-                className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-dark disabled:opacity-70"
-            >
-              {loginPage.submitLabel}
-            </button>
-          </form>
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
         </div>
       </div>
 
