@@ -24,3 +24,20 @@ insert into drivers (nama, no_hp) values
   ('Driver 7',  '-'), ('Driver 8',  '-'), ('Driver 9',  '-'),
   ('Driver 10', '-')
 on conflict do nothing;
+
+-- Contoh pengaduan (2 menunggu) supaya dashboard pengaduan tidak kosong di
+-- DB fresh. Idempotent via where not exists: aman di-rerun, tidak dobel.
+-- Trips/positions tidak di-seed: simulasi mengisinya otomatis tiap jalan.
+insert into pengaduan (plat, jam, deskripsi, status)
+select 'DK 5678 CD', '09:40', 'Truk ngebut di Jalan Raya Waru, nyalip dari kiri hampir menyerempet motor.', 'menunggu'
+where not exists (
+  select 1 from pengaduan
+  where deskripsi = 'Truk ngebut di Jalan Raya Waru, nyalip dari kiri hampir menyerempet motor.'
+);
+
+insert into pengaduan (plat, jam, deskripsi, status)
+select 'DK 5566 OP', '07:15', 'Truk melaju kencang di simpang dekat permukiman pagi hari.', 'menunggu'
+where not exists (
+  select 1 from pengaduan
+  where deskripsi = 'Truk melaju kencang di simpang dekat permukiman pagi hari.'
+);
