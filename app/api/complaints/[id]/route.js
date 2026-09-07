@@ -42,11 +42,18 @@ export async function POST(req, { params }) {
       apikey: SERVICE,
       Authorization: `Bearer ${SERVICE}`,
       "Content-Type": "application/json",
+      // Minta representasi supaya bisa bedakan "tidak ada baris cocok" (404)
+      // dari update beneran. Tanpa ini PostgREST 204/ok walau 0 baris.
+      Prefer: "return=representation",
     },
     body: JSON.stringify(update),
   });
   if (!res.ok) {
     return NextResponse.json({ error: `update pengaduan gagal: ${res.status}` }, { status: 502 });
+  }
+  const baris = await res.json().catch(() => []);
+  if (!Array.isArray(baris) || baris.length === 0) {
+    return NextResponse.json({ error: "pengaduan tidak ditemukan" }, { status: 404 });
   }
   return NextResponse.json({ ok: true });
 }

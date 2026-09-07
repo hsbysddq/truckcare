@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { catatChat } from "@/lib/supabase";
 
 // POST /api/agent/chat — teruskan pertanyaan ke agent OpenClaw di VPS.
 // Konsumen: lib/agent.js sendMessageToAgent -> return { role: "agent", text }.
@@ -13,10 +14,13 @@ export async function POST(req) {
   const resText = await telusurAgent(endpoint, pesan);
 
   if (resText) {
+    await catatChat(pesan, resText.jawaban, resText.mode ?? "luring");
     return NextResponse.json({ text: resText.jawaban, mode: resText.mode ?? "luring" });
   }
 
-  return NextResponse.json({ text: "Agent AI belum terhubung (OpenClaw belum dikonfigurasi).", mode: "luring" });
+  const luring = "Agent AI belum terhubung (OpenClaw belum dikonfigurasi).";
+  await catatChat(pesan, luring, "luring");
+  return NextResponse.json({ text: luring, mode: "luring" });
 }
 
 async function telusurAgent(endpoint, pesan) {
