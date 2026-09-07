@@ -18,13 +18,8 @@ export default function Footer() {
                   className="h-full w-full object-contain"
                 />
               </span>
-              <span className="flex flex-col leading-tight">
-                <span className="text-base font-bold tracking-tight text-white">
-                  {footer.brand.name}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
-                  {footer.brand.tagline}
-                </span>
+              <span className="text-base font-bold tracking-tight text-white">
+                {footer.brand.name}
               </span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/50">

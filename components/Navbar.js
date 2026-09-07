@@ -12,10 +12,19 @@ export default function Navbar({ forceSolid = false }) {
 
   useEffect(() => {
     if (forceSolid) return;
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const heroEl = document.querySelector("[data-hero]");
+
+    if (!heroEl) {
+      setScrolled(window.scrollY > 24);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setScrolled(!entry.isIntersecting),
+      { rootMargin: "-80px 0px 0px 0px", threshold: 0 }
+    );
+    observer.observe(heroEl);
+    return () => observer.disconnect();
   }, [forceSolid]);
 
   const isSolid = forceSolid || scrolled;
@@ -42,21 +51,12 @@ export default function Navbar({ forceSolid = false }) {
                 priority
               />
             </span>
-            <span className="flex flex-col leading-tight">
-              <span
-                className={`text-base font-bold tracking-tight ${
-                  isSolid ? "text-accent" : "text-white"
-                }`}
-              >
-                {siteConfig.name}
-              </span>
-              <span
-                className={`text-[10px] font-semibold uppercase tracking-wider ${
-                  isSolid ? "text-slate-400" : "text-white/70"
-                }`}
-              >
-                {siteConfig.tagline}
-              </span>
+            <span
+              className={`text-base font-bold tracking-tight ${
+                isSolid ? "text-accent" : "text-white"
+              }`}
+            >
+              {siteConfig.name}
             </span>
           </Link>
         </div>
