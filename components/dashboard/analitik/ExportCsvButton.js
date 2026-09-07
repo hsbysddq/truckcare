@@ -24,8 +24,12 @@ export default function ExportCsvButton({ data, filename, label }) {
     const tautan = document.createElement("a");
     tautan.href = url;
     tautan.download = filename;
+    // Masukkan ke DOM dulu dan revoke di tick berikut: revoke langsung
+    // bisa membatalkan unduhan di sebagian browser.
+    document.body.appendChild(tautan);
     tautan.click();
-    URL.revokeObjectURL(url);
+    tautan.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   return (
