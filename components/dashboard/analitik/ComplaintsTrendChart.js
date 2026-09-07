@@ -39,6 +39,7 @@ export default function ComplaintsTrendChart({ data, seriesLabels, seriesColors 
             formatter={(value) => seriesLabels[value] ?? value}
             wrapperStyle={{ fontSize: 11 }}
           />
+          <Bar dataKey="menunggu" stackId="a" fill={seriesColors.menunggu} />
           <Bar dataKey="tervalidasi" stackId="a" fill={seriesColors.tervalidasi} />
           <Bar dataKey="ditolak" stackId="a" fill={seriesColors.ditolak} />
           <Bar
