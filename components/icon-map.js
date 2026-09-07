@@ -23,6 +23,7 @@ import {
   Link as LinkIcon,
   ShieldCheck,
   Funnel,
+  Settings,
 } from "lucide-react";
 
 export const iconMap = {
@@ -50,4 +51,5 @@ export const iconMap = {
   link: LinkIcon,
   "shield-check": ShieldCheck,
   funnel: Funnel,
+  settings: Settings,
 };

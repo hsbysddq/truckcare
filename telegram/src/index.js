@@ -5,7 +5,9 @@ import TelegramBot from 'node-telegram-bot-api';
 import { createClient } from '@supabase/supabase-js';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const allowedChat = process.env.TELEGRAM_CHAT_ID;
+// Chat ID owner bootstrap: selalu boleh, anti-lockout kalau tabel
+// bot_akses belum dibuat atau gagal dibaca.
+const ownerChat = process.env.TELEGRAM_CHAT_ID;
 
 if (!token) {
   console.error('Isi TELEGRAM_BOT_TOKEN di telegram/.env');
@@ -21,6 +23,27 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const bot = new TelegramBot(token, { polling: true });
+
+// Reply keyboard: tombol permanen di bawah kolom ketik supaya owner cukup
+// ketuk, tidak perlu mengetik /status. Keyboard menetap di client sampai
+// diganti, jadi cukup dikirim di /start dan tiap balasan penting.
+const TOMBOL_STATUS = "Status Armada";
+const TOMBOL_REKAP = "Rekap Hari Ini";
+const TOMBOL_TUNGGU = "Pengaduan Menunggu";
+const KEYBOARD = {
+  keyboard: [[{ text: TOMBOL_STATUS }, { text: TOMBOL_REKAP }], [{ text: TOMBOL_TUNGGU }]],
+  resize_keyboard: true,
+};
+
+// Daftarkan ke menu perintah "/" supaya rapi (best-effort, abaikan gagal).
+bot
+  .setMyCommands([
+    { command: "start", description: "Tampilkan tombol menu" },
+    { command: "status", description: "Lihat posisi armada" },
+    { command: "rekap", description: "Ringkasan pengaduan hari ini" },
+    { command: "pending", description: "Pengaduan yang menunggu validasi" },
+  ])
+  .catch((e) => console.error("setMyCommands gagal:", e.message));
 
 async function statusArmada() {
   const { data: posisi } = await supabase
@@ -48,29 +71,120 @@ async function statusArmada() {
   return baris.length ? `Status armada:\n${baris.join('\n')}` : 'Belum ada data posisi.';
 }
 
-bot.onText(/\/status/, async (msg) => {
-  if (allowedChat && String(msg.chat.id) !== String(allowedChat)) return;
-  try {
-    await bot.sendMessage(msg.chat.id, await statusArmada());
-  } catch (e) {
-    console.error(e);
-    await bot.sendMessage(msg.chat.id, 'Gagal mengambil status.');
-  }
-});
+async function rekapHariIni() {
+  const hariIni = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase.from('pengaduan').select('status').eq('tanggal', hariIni);
+  const total = data?.length ?? 0;
+  const hitung = (s) => data?.filter((p) => p.status === s).length ?? 0;
+  let pesan = `Ringkasan pengaduan hari ini (${hariIni}):\n`;
+  pesan += `• Total: ${total}\n`;
+  pesan += `• Valid: ${hitung('valid')}\n`;
+  pesan += `• Ditolak AI: ${hitung('ditolak')}\n`;
+  pesan += `• Menunggu: ${hitung('menunggu')}`;
+  return pesan;
+}
 
-bot.on('message', async (msg) => {
-  if (allowedChat && String(msg.chat.id) !== String(allowedChat)) return;
-  const teks = (msg.text || '').trim();
-  if (!teks || teks.startsWith('/')) return;
-  // Pertanyaan bebas: arahkan ke /status atau balas ringkas
+async function pengaduanMenunggu() {
+  const { data } = await supabase
+    .from('pengaduan')
+    .select('plat,tanggal,jam,deskripsi')
+    .eq('status', 'menunggu')
+    .order('created_at', { ascending: false })
+    .limit(5);
+  if (!data?.length) return 'Tidak ada pengaduan yang menunggu validasi.';
+  const baris = data.map(
+    (p) => `• ${p.plat} (${p.tanggal}${p.jam ? ` ${p.jam}` : ''}): ${(p.deskripsi ?? '').slice(0, 80)}`
+  );
+  return `Menunggu validasi (${data.length}):\n${baris.join('\n')}`;
+}
+
+// Boleh akses kalau owner bootstrap atau chat_id terdaftar di tabel
+// bot_akses (dikelola dari dashboard Pengaturan). Tabel belum ada /
+// gagal dibaca = tolak (fail-closed), kecuali owner.
+async function bolehAkses(chatId) {
+  const id = String(chatId);
+  if (ownerChat && id === String(ownerChat)) return true;
+  try {
+    const { data, error } = await supabase
+      .from('bot_akses')
+      .select('id')
+      .eq('chat_id', id)
+      .limit(1);
+    if (error) throw error;
+    return (data?.length ?? 0) > 0;
+  } catch (e) {
+    console.error('cek akses gagal:', e.message);
+    return false;
+  }
+}
+
+bot.onText(/\/start/, async (msg) => {
+  // Catat chat ID pendaftar baru di log service supaya owner bisa
+  // menyalinnya ke dashboard Pengaturan (journalctl -u antar-telegram).
+  console.log(`start dari chat_id=${msg.chat.id} nama=${msg.from?.first_name ?? "-"} username=${msg.from?.username ?? "-"}`);
+  if (!(await bolehAkses(msg.chat.id))) return;
   try {
     await bot.sendMessage(
       msg.chat.id,
-      'Gunakan /status untuk lihat posisi armada. Untuk tanya AI lebih dalam, buka aplikasi Antar.'
+      "Halo, saya bot Antar. Ketuk tombol di bawah untuk lihat posisi armada.",
+      { reply_markup: KEYBOARD }
     );
   } catch (e) {
     console.error(e);
   }
 });
 
-console.log('Bot Antar jalan (polling). Kirim /status di Telegram.');
+bot.onText(new RegExp(`^(\\/status|${TOMBOL_STATUS})$`), async (msg) => {
+  if (!(await bolehAkses(msg.chat.id))) return;
+  try {
+    await bot.sendMessage(msg.chat.id, await statusArmada(), {
+      reply_markup: KEYBOARD,
+    });
+  } catch (e) {
+    console.error(e);
+    await bot.sendMessage(msg.chat.id, "Gagal mengambil status.");
+  }
+});
+
+bot.onText(new RegExp(`^(\\/rekap|${TOMBOL_REKAP})$`), async (msg) => {
+  if (!(await bolehAkses(msg.chat.id))) return;
+  try {
+    await bot.sendMessage(msg.chat.id, await rekapHariIni(), {
+      reply_markup: KEYBOARD,
+    });
+  } catch (e) {
+    console.error(e);
+    await bot.sendMessage(msg.chat.id, "Gagal mengambil rekap.");
+  }
+});
+
+bot.onText(new RegExp(`^(\\/pending|${TOMBOL_TUNGGU})$`), async (msg) => {
+  if (!(await bolehAkses(msg.chat.id))) return;
+  try {
+    await bot.sendMessage(msg.chat.id, await pengaduanMenunggu(), {
+      reply_markup: KEYBOARD,
+    });
+  } catch (e) {
+    console.error(e);
+    await bot.sendMessage(msg.chat.id, "Gagal mengambil daftar tunggu.");
+  }
+});
+
+bot.on("message", async (msg) => {
+  if (!(await bolehAkses(msg.chat.id))) return;
+  const teks = (msg.text || "").trim();
+  const tombol = [TOMBOL_STATUS, TOMBOL_REKAP, TOMBOL_TUNGGU];
+  if (!teks || teks.startsWith("/") || tombol.includes(teks)) return;
+  // Pertanyaan bebas: arahkan ke tombol, bukan ke perintah ketik
+  try {
+    await bot.sendMessage(
+      msg.chat.id,
+      "Ketuk salah satu tombol di bawah untuk lihat data armada.",
+      { reply_markup: KEYBOARD }
+    );
+  } catch (e) {
+    console.error(e);
+  }
+});
+
+console.log("Bot Antar jalan (polling). Kirim /start di Telegram.");
