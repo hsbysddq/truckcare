@@ -22,6 +22,10 @@ const INTERVAL_DETIK = parseFloat(process.env.ANTAR_INTERVAL_DETIK || '3');
 const KECEPATAN_KMJ = parseFloat(process.env.ANTAR_KECEPATAN_KMJ || '45');
 // skala: 1 menit perjalanan = 1 detik nyata
 const MENIT_PER_DETIK = 1;
+// positions ~10 baris tiap 3 detik (±280 ribu/hari): hapus yang lebih tua dari
+// retensi tiap ~5 menit (100 tick). Dashboard hanya baca posisi terbaru.
+const RETENSI_HARI = parseFloat(process.env.ANTAR_RETENSI_HARI || '3');
+let tick = 0;
 
 // state per truk
 // rute.js menyimpan waypoint sebagai array [lat, lon, label, tiba_menit],
@@ -38,7 +42,7 @@ for (let i = 0; i < Math.min(JUMLAH_TRUK, RUTE.length); i++) {
       tiba_menit,
     })),
   };
-  trukState.set(mentah.truk, { menit: 0, rute, tiba: false });
+  trukState.set(mentah.truk, { menit: 0, rute });
 }
 
 function kmPerMenit() {
@@ -77,34 +81,46 @@ async function initTrips() {
       .maybeSingle();
     if (errCari) throw errCari;
 
-    let trip;
-    if (tripAda) {
-      trip = tripAda;
-    } else {
-      const { data, error: errTrip } = await supabase
-        .from('trips')
-        .insert({
-          truk_id: truk.id,
-          asal: st.rute.asal,
-          tujuan: st.rute.tujuan,
-          waypoints: st.rute.waypoints,
-          status: 'berjalan',
-        })
-        .select('id')
-        .single();
-      if (errTrip) throw errTrip;
-      trip = data;
-    }
-
     st.trukId = truk.id;
-    st.tripId = trip.id;
+    if (tripAda) {
+      st.tripId = tripAda.id;
+    } else {
+      await buatTripBaru(st);
+    }
   }
+}
+
+// Selesaikan trip lama dan langsung mulai trip baru supaya simulasi jalan
+// terus. Tanpa ini proses exit saat semua tiba lalu systemd me-restart dari
+// menit 0 = semua truk teleport balik ke titik awal tiap ~90 detik.
+async function buatTripBaru(st) {
+  if (st.tripId) {
+    const { error: errTutup } = await supabase
+      .from('trips')
+      .update({ status: 'selesai', selesai: new Date().toISOString() })
+      .eq('id', st.tripId);
+    if (errTutup) throw errTutup;
+  }
+  const { data, error: errTrip } = await supabase
+    .from('trips')
+    .insert({
+      truk_id: st.trukId,
+      asal: st.rute.asal,
+      tujuan: st.rute.tujuan,
+      waypoints: st.rute.waypoints,
+      status: 'berjalan',
+    })
+    .select('id')
+    .single();
+  if (errTrip) throw errTrip;
+  st.tripId = data.id;
+  st.menit = 0;
+  return data;
 }
 
 async function kirimPosisi() {
   const rows = [];
   for (const [plat, st] of trukState) {
-    if (st.tiba) continue;
     // Lewati tick (jangan crash) kalau menit jatuh di luar jangkauan rute.
     const hasil = posisiDiMenit(st.rute.waypoints, st.menit);
     if (!hasil) {
@@ -126,17 +142,30 @@ async function kirimPosisi() {
     });
 
     st.menit += MENIT_PER_DETIK * (INTERVAL_DETIK);
-    if (progres >= 1) st.tiba = true;
+    if (progres >= 1) await buatTripBaru(st);
   }
 
-  if (rows.length === 0) {
-    console.log('Semua truk sudah tiba. Simulasi selesai.');
-    process.exit(0);
-  }
+  if (rows.length === 0) return; // tak seharusnya terjadi; jangan exit
 
   const { error } = await supabase.from('positions').insert(rows);
   if (error) console.error('Gagal insert positions:', error.message);
   else console.log(`[${new Date().toISOString()}] ${rows.length} posisi dikirim`);
+
+  if (++tick % 100 === 0) await bersihPosisiLama();
+}
+
+async function bersihPosisiLama() {
+  try {
+    const batas = new Date(Date.now() - RETENSI_HARI * 864e5).toISOString();
+    const { error, count } = await supabase
+      .from('positions')
+      .delete({ count: 'exact' })
+      .lt('ts', batas);
+    if (error) console.error('Gagal bersih positions:', error.message);
+    else if (count) console.log(`Bersih ${count} posisi lebih tua dari ${RETENSI_HARI} hari`);
+  } catch (e) {
+    console.error('Gagal bersih positions:', e.message);
+  }
 }
 
 async function main() {
