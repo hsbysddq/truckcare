@@ -31,14 +31,20 @@ export default function PetaPage() {
 
   useEffect(() => {
     let batal = false;
+    // Gagal 3x beruntun (~9 detik) = sumber data mati: kosongkan supaya
+    // empty state muncul, jangan pajang posisi basi sebagai live.
+    let gagalBeruntun = 0;
     async function muat() {
       try {
         const res = await fetch("/api/trucks", { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error("fetch gagal");
         const data = await res.json();
-        if (!batal && Array.isArray(data)) setTrucks(data);
+        if (batal || !Array.isArray(data)) return;
+        gagalBeruntun = 0;
+        setTrucks(data);
       } catch {
-        // Biarkan data lama, coba lagi di interval berikutnya.
+        gagalBeruntun += 1;
+        if (!batal && gagalBeruntun >= 3) setTrucks([]);
       }
     }
     muat();
