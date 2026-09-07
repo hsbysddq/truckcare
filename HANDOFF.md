@@ -16,12 +16,16 @@ telegram). Video demo + artikel lomba dikerjakan PIC lain, bukan di sini.
 - Analitik: tren + metrik pengaduan dan insiden ngebut live dari Supabase.
   Chart solar masih contoh (skema belum punya data BBM).
 
-## PR
+## PR (semua merged ke master per 7 Sep 2026 malam)
 
 - #3 merged: data layer + form pengaduan publik.
-- #4 open: halaman peta live.
-- #5 open: analitik live.
-- Berikutnya (PR ini): halaman Pengaturan + allowlist bot Telegram.
+- #4 merged: halaman peta live (+ fix review: kosongkan saat sumber mati,
+  lastUpdate dari positions.ts).
+- #5 merged: analitik live (+ fix review: CSV aman browser, komentar
+  server-only).
+- #6 merged: halaman Pengaturan + allowlist bot Telegram (+ fix review:
+  API digate login, validasi UUID, bot lempar error).
+- Temuan review Copilot di ketiganya sudah dibereskan sebelum merge.
 
 ## Env yang wajib ada
 
