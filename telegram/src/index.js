@@ -46,11 +46,12 @@ bot
   .catch((e) => console.error("setMyCommands gagal:", e.message));
 
 async function statusArmada() {
-  const { data: posisi } = await supabase
+  const { data: posisi, error: errPosisi } = await supabase
     .from('positions')
     .select('*')
     .order('ts', { ascending: false })
     .limit(100);
+  if (errPosisi) throw errPosisi;
   const { data: trips } = await supabase.from('trips').select('*').eq('status', 'berjalan');
   const { data: trucks } = await supabase.from('trucks').select('*');
 
@@ -73,7 +74,8 @@ async function statusArmada() {
 
 async function rekapHariIni() {
   const hariIni = new Date().toISOString().slice(0, 10);
-  const { data } = await supabase.from('pengaduan').select('status').eq('tanggal', hariIni);
+  const { data, error } = await supabase.from('pengaduan').select('status').eq('tanggal', hariIni);
+  if (error) throw error;
   const total = data?.length ?? 0;
   const hitung = (s) => data?.filter((p) => p.status === s).length ?? 0;
   let pesan = `Ringkasan pengaduan hari ini (${hariIni}):\n`;
@@ -85,12 +87,13 @@ async function rekapHariIni() {
 }
 
 async function pengaduanMenunggu() {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('pengaduan')
     .select('plat,tanggal,jam,deskripsi')
     .eq('status', 'menunggu')
     .order('created_at', { ascending: false })
     .limit(5);
+  if (error) throw error;
   if (!data?.length) return 'Tidak ada pengaduan yang menunggu validasi.';
   const baris = data.map(
     (p) => `• ${p.plat} (${p.tanggal}${p.jam ? ` ${p.jam}` : ''}): ${(p.deskripsi ?? '').slice(0, 80)}`
