@@ -14,8 +14,9 @@ export function proxy(request) {
   return NextResponse.redirect(loginUrl);
 }
 
-// Only /dashboard and its sub-routes are gated; public pages, _next/*,
-// and files in /public never hit this proxy.
+// /dashboard dan API pengaturan digate; API publik lain (dibaca langsung
+// dari Supabase via anon + RLS), halaman publik, _next/*, dan file
+// di /public tidak kena proxy ini.
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/api/pengaturan/:path*"],
 };
