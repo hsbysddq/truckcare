@@ -21,7 +21,7 @@ export default function Navbar({ forceSolid = false }) {
 
     const observer = new IntersectionObserver(
       ([entry]) => setScrolled(!entry.isIntersecting),
-      { rootMargin: "-80px 0px 0px 0px", threshold: 0 }
+      { rootMargin: "-96px 0px 0px 0px", threshold: 0 }
     );
     observer.observe(heroEl);
     return () => observer.disconnect();
@@ -35,7 +35,7 @@ export default function Navbar({ forceSolid = false }) {
         isSolid ? "bg-white/95 backdrop-blur-sm shadow-sm" : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto flex h-20 max-w-7xl items-center px-6 lg:px-8">
+      <nav className="mx-auto flex h-24 max-w-7xl items-center px-6 lg:px-8">
         <div className="flex flex-1 justify-start">
           <Link
             href="/"
@@ -66,7 +66,7 @@ export default function Navbar({ forceSolid = false }) {
             <a
               key={link.href}
               href={link.href}
-              className={`text-sm font-medium transition-colors ${
+              className={`text-base font-medium transition-colors ${
                 isSolid
                   ? "text-slate-600 hover:text-accent"
                   : "text-white/90 hover:text-white"
@@ -81,7 +81,7 @@ export default function Navbar({ forceSolid = false }) {
           <div className="hidden items-center gap-3 lg:flex">
             <a
               href={navbar.secondaryCta.href}
-              className={`inline-flex min-h-11 items-center justify-center rounded-full border px-5 text-sm font-semibold transition-colors ${
+              className={`inline-flex min-h-11 items-center justify-center rounded-full border px-5 py-2.5 text-base font-semibold transition-colors ${
                 isSolid
                   ? "border-accent/30 text-accent hover:bg-accent-tint"
                   : "border-white/50 text-white hover:bg-white/10"
@@ -91,7 +91,7 @@ export default function Navbar({ forceSolid = false }) {
             </a>
             <a
               href={navbar.primaryCta.href}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-dark"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 py-2.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-accent-dark"
             >
               {navbar.primaryCta.label}
             </a>
