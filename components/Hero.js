@@ -145,9 +145,17 @@ export default function Hero() {
             {activeSlide.headline}
           </h1>
 
+          <p
+            key={`subheadline-${activeIndex}`}
+            style={entryStyle(200)}
+            className="mt-4 text-base font-normal leading-snug text-white/75 sm:text-lg lg:text-xl"
+          >
+            {activeSlide.subheadline}
+          </p>
+
           <div
             key={`benefits-${activeIndex}`}
-            style={entryStyle(200)}
+            style={entryStyle(300)}
             className="mx-auto mt-8 grid max-w-md grid-cols-2 gap-x-6 gap-y-6 border-t border-white/15 pt-8 sm:mt-10 sm:flex sm:max-w-none sm:items-start sm:justify-center sm:gap-0 sm:pt-8"
           >
             {activeSlide.benefits.map((benefit, index) => {
@@ -173,7 +181,7 @@ export default function Hero() {
 
           <div
             key={`buttons-${activeIndex}`}
-            style={entryStyle(300)}
+            style={entryStyle(400)}
             className="mt-8 flex flex-col items-center justify-center gap-4 sm:mt-10 sm:flex-row"
           >
             <a
