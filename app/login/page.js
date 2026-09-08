@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 import { Truck } from "lucide-react";
-import { siteConfig, footer, loginPage } from "@/lib/content";
+import { siteConfig, footer, loginPage, navbar } from "@/lib/content";
 import LoginForm from "@/components/LoginForm";
 import Logo from "@/components/Logo";
+
+// Judul tab mengikuti label tombol navbar: "{label} · Circle T".
+export const metadata = { title: navbar.secondaryCta.label };
 
 export default function LoginPage() {
   return (

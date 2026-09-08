@@ -1,7 +1,9 @@
-import { pengaturanPage } from "@/lib/content";
+import { pengaturanPage, dashboardTitle } from "@/lib/content";
 import AksesBot from "@/components/dashboard/pengaturan/AksesBot";
 import StatusTelegram from "@/components/dashboard/pengaturan/StatusTelegram";
 import StatusOpenClaw from "@/components/dashboard/pengaturan/StatusOpenClaw";
+
+export const metadata = { title: dashboardTitle("/dashboard/pengaturan") };
 
 export default function PengaturanPage() {
   return (

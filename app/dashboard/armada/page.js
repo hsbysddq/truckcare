@@ -1,7 +1,9 @@
 import { getTrucks } from "@/lib/data";
 import { getTrucksShape } from "@/lib/supabase";
-import { armadaPage } from "@/lib/content";
+import { armadaPage, dashboardTitle } from "@/lib/content";
 import ArmadaCard from "@/components/dashboard/ArmadaCard";
+
+export const metadata = { title: dashboardTitle("/dashboard/armada") };
 
 // Server: baca Supabase langsung, gagal (env kosong / offline) pakai dummy.
 async function muatTruk() {

@@ -1,7 +1,10 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PengaduanForm from "@/components/PengaduanForm";
-import { pengaduanPublikPage } from "@/lib/content";
+import { pengaduanPublikPage, navbar } from "@/lib/content";
+
+// Judul tab mengikuti label tombol navbar: "{label} · Circle T".
+export const metadata = { title: navbar.primaryCta.label };
 
 export default function PengaduanPage() {
   const copy = pengaduanPublikPage;

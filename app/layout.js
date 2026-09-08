@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: siteConfig.title,
+  title: {
+    default: siteConfig.name,
+    template: siteConfig.titleTemplate,
+  },
   description: siteConfig.description,
 };
 
