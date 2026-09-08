@@ -6,6 +6,7 @@ import { getTrucks, getTruckHistory } from "@/lib/data";
 import { overviewPage } from "@/lib/content";
 import { iconMap } from "@/components/icon-map";
 import TruckDetailPanel from "@/components/dashboard/TruckDetailPanel";
+import TruckSelect from "@/components/dashboard/TruckSelect";
 
 const TruckMap = dynamic(() => import("@/components/dashboard/TruckMap"), {
   ssr: false,
@@ -104,9 +105,17 @@ export default function DashboardOverviewPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
-            {overviewPage.mapCardTitle}
-          </h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {overviewPage.mapCardTitle}
+            </h2>
+            {/* Satu state (selectedTruckId) dipakai dropdown, marker peta, dan panel detail. */}
+            <TruckSelect
+              trucks={trucks}
+              selectedTruckId={selectedTruckId}
+              onSelect={setSelectedTruckId}
+            />
+          </div>
           <div className="mt-4 h-[420px] overflow-hidden rounded-xl">
             <TruckMap
               trucks={trucks}
