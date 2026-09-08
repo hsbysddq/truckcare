@@ -1,4 +1,5 @@
-import { Fuel } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Bot, Fuel } from "lucide-react";
 import { overviewPage, truckStatusMeta } from "@/lib/content";
 
 export default function TruckDetailPanel({ truck, history }) {
@@ -15,6 +16,8 @@ export default function TruckDetailPanel({ truck, history }) {
   const status = truckStatusMeta[truck.status] ?? truckStatusMeta.istirahat;
   const speedPoints = history?.speedHistory ?? [];
   const maxSpeed = Math.max(...speedPoints.map((point) => point.speedKph), 1);
+  const detailHref = `/dashboard/armada/${truck.id}`;
+  const chatHref = `/dashboard/chat?truk=${encodeURIComponent(truck.plateNumber)}`;
 
   return (
     <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6">
@@ -27,10 +30,26 @@ export default function TruckDetailPanel({ truck, history }) {
         <span className="text-xs text-slate-400">{truck.lastUpdate ?? "-"}</span>
       </div>
 
-      <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900">
-        {truck.plateNumber}
-      </h3>
-      <p className="text-sm text-slate-500">{truck.model ?? "-"}</p>
+      {/* Plat + nama truk menjadi tautan ke halaman detail (menggantikan
+          tombol "Lihat Detail"). */}
+      <Link
+        href={detailHref}
+        title={detailPanel.detailLinkLabel}
+        className="group mt-4 -mx-2 flex cursor-pointer items-start justify-between gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-slate-50"
+      >
+        <span className="min-w-0">
+          <span className="block text-xl font-bold tracking-tight text-slate-900 transition-colors group-hover:text-accent">
+            {truck.plateNumber}
+          </span>
+          <span className="block text-sm text-slate-500">{truck.model ?? "-"}</span>
+        </span>
+        <ArrowUpRight
+          className="mt-1 h-5 w-5 flex-none text-slate-300 transition-colors group-hover:text-accent"
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
+        <span className="sr-only">{detailPanel.detailLinkLabel}</span>
+      </Link>
 
       <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
         <div>
@@ -88,20 +107,13 @@ export default function TruckDetailPanel({ truck, history }) {
         </ol>
       </div>
 
-      <div className="mt-6 flex gap-3">
-        <button
-          type="button"
-          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-        >
-          {detailPanel.detailButtonLabel}
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-dark"
-        >
-          {detailPanel.aiButtonLabel}
-        </button>
-      </div>
+      <Link
+        href={chatHref}
+        className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-dark"
+      >
+        <Bot className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+        {detailPanel.aiButtonLabel}
+      </Link>
     </div>
   );
 }

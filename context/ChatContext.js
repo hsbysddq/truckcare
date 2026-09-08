@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import { fetchChatHistory, sendMessageToAgent } from "@/lib/agent";
@@ -25,7 +24,6 @@ export function ChatProvider({ children }) {
   const [truckContext, setTruckContext] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const askedTruckRef = useRef(null);
 
   const loadHistory = useCallback(async (signal) => {
     setLoading(true);
@@ -69,7 +67,8 @@ export function ChatProvider({ children }) {
 
       // Lewat /api/agent/chat di server (browser tidak memanggil OpenClaw);
       // server sekaligus mencatat tanya-jawab ke chat_logs milik user.
-      const agentMessage = await sendMessageToAgent(text);
+      // Plat truk aktif ikut dikirim supaya agent tahu konteksnya.
+      const agentMessage = await sendMessageToAgent(text, truck);
 
       setIsTyping(false);
       setMessages((prev) => [
@@ -80,18 +79,14 @@ export function ChatProvider({ children }) {
     [truckContext]
   );
 
-  // Dibuka dari halaman detail truk: tanyakan truk itu sekali saja.
-  const askAboutTruck = useCallback(
-    (plate) => {
-      if (!plate || askedTruckRef.current === plate) return;
-      askedTruckRef.current = plate;
-      setTruckContext(plate);
-      sendMessage(chatPage.truckContextQuestion.replace("{plate}", plate), {
-        truckContext: plate,
-      });
-    },
-    [sendMessage]
-  );
+  // Dibuka dari panel Overview / halaman detail truk (?truk=PLAT): konteks
+  // truk langsung aktif tanpa mengirim pesan otomatis; pengguna bertanya
+  // sendiri atau memakai saran cepat.
+  const activateTruck = useCallback((plate) => {
+    if (!plate) return;
+    setTruckContext(plate);
+  }, []);
+  const clearTruckContext = useCallback(() => setTruckContext(null), []);
 
   const dismissError = useCallback(() => setError(null), []);
 
@@ -105,7 +100,8 @@ export function ChatProvider({ children }) {
         loading,
         error,
         sendMessage,
-        askAboutTruck,
+        activateTruck,
+        clearTruckContext,
         reloadHistory: () => loadHistory(),
         dismissError,
       }}

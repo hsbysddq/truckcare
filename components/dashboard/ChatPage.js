@@ -17,7 +17,9 @@ export default function ChatPage() {
     loading,
     error,
     sendMessage,
-    askAboutTruck,
+    truckContext,
+    activateTruck,
+    clearTruckContext,
     reloadHistory,
     dismissError,
   } = useChat();
@@ -27,13 +29,18 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages, isTyping]);
 
-  // ?truk=PLAT dari halaman detail truk — tunggu riwayat termuat dulu supaya
-  // pesan baru tidak tertimpa hasil GET.
+  // ?truk=PLAT dari panel Overview / halaman detail truk: aktifkan konteks,
+  // lalu bersihkan query supaya refresh atau tombol silang tidak
+  // mengaktifkannya lagi.
   useEffect(() => {
-    if (loading) return;
-    const plate = new URLSearchParams(window.location.search).get("truk");
-    if (plate) askAboutTruck(plate);
-  }, [loading, askAboutTruck]);
+    const params = new URLSearchParams(window.location.search);
+    const plate = params.get("truk");
+    if (!plate) return;
+    activateTruck(plate);
+    params.delete("truk");
+    const sisa = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (sisa ? `?${sisa}` : ""));
+  }, [activateTruck]);
 
   return (
     <div className="flex h-full overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -74,7 +81,12 @@ export default function ChatPage() {
           </div>
         )}
 
-        <ChatInput onSend={sendMessage} disabled={isTyping || loading} />
+        <ChatInput
+          onSend={sendMessage}
+          disabled={isTyping || loading}
+          truckContext={truckContext}
+          onClearTruck={clearTruckContext}
+        />
       </div>
 
       <AgentActivityPanel />

@@ -40,6 +40,10 @@ export async function POST(req) {
   if (!pesan || typeof pesan !== "string") {
     return NextResponse.json({ text: "" }, { status: 400 });
   }
+  // Konteks truk aktif dari Chat AI (plat nomor) disisipkan ke pertanyaan
+  // yang diteruskan ke agent; teks yang dicatat ke chat_logs tetap asli.
+  const truk = typeof body?.truck === "string" ? body.truck.trim().slice(0, 20) : "";
+  const pesanAgent = truk ? `[Konteks truk ${truk}] ${pesan}` : pesan;
 
   // Best-effort: kalau Supabase bermasalah, chat tetap jalan tanpa konteks.
   let konteks = null;
@@ -68,7 +72,7 @@ export async function POST(req) {
   }
 
   const endpoint = process.env.OPENCLAW_ENDPOINT;
-  const resText = await telusurAgent(endpoint, pesan, konteks);
+  const resText = await telusurAgent(endpoint, pesanAgent, konteks);
 
   if (resText) {
     await catatChat(pesan, resText.jawaban, resText.mode ?? "luring", user.id);

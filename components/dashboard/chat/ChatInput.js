@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Truck, X } from "lucide-react";
 import { chatPage } from "@/lib/content";
 
-export default function ChatInput({ onSend, disabled }) {
+function fill(template, vars) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? ""));
+}
+
+export default function ChatInput({ onSend, disabled, truckContext, onClearTruck }) {
   const [value, setValue] = useState("");
 
   function handleSubmit(event) {
@@ -15,14 +19,40 @@ export default function ChatInput({ onSend, disabled }) {
     setValue("");
   }
 
+  const placeholder = truckContext
+    ? fill(chatPage.inputPlaceholderWithTruck, { plate: truckContext })
+    : chatPage.inputPlaceholder;
+  const suggestions = truckContext
+    ? [fill(chatPage.truckQuickSuggestion, { plate: truckContext }), ...chatPage.quickSuggestions]
+    : chatPage.quickSuggestions;
+
   return (
     <div className="flex-none border-t border-slate-200 bg-white px-4 py-4 sm:px-6">
+      {truckContext && (
+        <div className="mb-3 flex">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-tint py-1 pl-3 pr-1 text-xs font-semibold text-accent">
+            <Truck className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+            <span>
+              {chatPage.truckContextLabel}: {truckContext}
+            </span>
+            <button
+              type="button"
+              onClick={onClearTruck}
+              aria-label={chatPage.clearTruckContextLabel}
+              className="ml-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-accent transition-colors hover:bg-accent/10"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
+          </span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <input
           type="text"
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder={chatPage.inputPlaceholder}
+          placeholder={placeholder}
           disabled={disabled}
           className="min-h-11 flex-1 rounded-full border border-slate-200 px-5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint disabled:opacity-60"
         />
@@ -37,7 +67,7 @@ export default function ChatInput({ onSend, disabled }) {
       </form>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {chatPage.quickSuggestions.map((suggestion) => (
+        {suggestions.map((suggestion) => (
           <button
             key={suggestion}
             type="button"
