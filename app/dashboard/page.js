@@ -19,9 +19,8 @@ const TruckMap = dynamic(() => import("@/components/dashboard/TruckMap"), {
 export default function DashboardOverviewPage() {
   // Dummy dulu biar langsung tampil, timpa dengan data live kalau API balas.
   const [trucks, setTrucks] = useState(() => getTrucks());
-  const [selectedTruckId, setSelectedTruckId] = useState(
-    trucks[0]?.id ?? null
-  );
+  // Mulai tanpa pilihan supaya peta menampilkan seluruh armada dulu.
+  const [selectedTruckId, setSelectedTruckId] = useState(null);
 
   useEffect(() => {
     let batal = false;
@@ -38,8 +37,7 @@ export default function DashboardOverviewPage() {
   }, []);
 
   const selectedTruck = useMemo(
-    () =>
-      trucks.find((truck) => truck.id === selectedTruckId) ?? trucks[0] ?? null,
+    () => trucks.find((truck) => truck.id === selectedTruckId) ?? null,
     [trucks, selectedTruckId]
   );
   const history = useMemo(

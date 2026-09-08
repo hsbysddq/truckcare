@@ -2,11 +2,15 @@
 
 // Leaflet CSS dimuat di sini (bukan global) supaya tidak ikut semua halaman.
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import { truckStatusMeta } from "@/lib/content";
 
-const SURABAYA_CENTER = [-7.3, 112.72];
+const INITIAL_CENTER = [-7.3, 112.72];
+const INITIAL_ZOOM = 10;
+const SELECTED_ZOOM = 13;
+const FIT_PADDING = [48, 48];
 
 // SVG truk statis (Lucide Truck), tanpa renderToStaticMarkup bentar pakai ESM.
 // Ikon dipakai semua marker; ukuran tampung berubah saat terpilih (40 vs 32).
@@ -25,15 +29,43 @@ function createTruckIcon(status, isSelected) {
   });
 }
 
+// react-leaflet mengabaikan prop `center` setelah render pertama, jadi
+// viewport digerakkan lewat instance peta: flyTo ke truk terpilih, atau
+// fitBounds semua marker saat belum ada yang dipilih.
+function MapViewport({ trucks, selectedTruck }) {
+  const map = useMap();
+  const boundsKey = trucks
+    .map((truck) => `${truck.id}:${truck.lat},${truck.lng}`)
+    .join("|");
+
+  useEffect(() => {
+    if (selectedTruck) {
+      map.flyTo([selectedTruck.lat, selectedTruck.lng], SELECTED_ZOOM);
+      return;
+    }
+    if (trucks.length === 0) return;
+    map.fitBounds(
+      L.latLngBounds(trucks.map((truck) => [truck.lat, truck.lng])),
+      { padding: FIT_PADDING }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, selectedTruck?.id, selectedTruck?.lat, selectedTruck?.lng, boundsKey]);
+
+  return null;
+}
+
 export default function TruckMap({ trucks, selectedTruckId, onSelectTruck }) {
   // Truk tanpa koordinat (mis. belum ada posisi di Supabase) tidak dipetakan.
   const terpeta = trucks.filter(
     (truck) => Number.isFinite(truck.lat) && Number.isFinite(truck.lng)
   );
+  const selectedTruck =
+    terpeta.find((truck) => truck.id === selectedTruckId) ?? null;
+
   return (
     <MapContainer
-      center={SURABAYA_CENTER}
-      zoom={10}
+      center={INITIAL_CENTER}
+      zoom={INITIAL_ZOOM}
       scrollWheelZoom={false}
       className="h-full w-full"
     >
@@ -41,6 +73,7 @@ export default function TruckMap({ trucks, selectedTruckId, onSelectTruck }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <MapViewport trucks={terpeta} selectedTruck={selectedTruck} />
       {terpeta.map((truck) => (
         <Marker
           key={truck.id}
