@@ -24,6 +24,8 @@ import {
   ShieldCheck,
   Funnel,
   Settings,
+  Send,
+  Bell,
 } from "lucide-react";
 
 export const iconMap = {
@@ -52,4 +54,6 @@ export const iconMap = {
   "shield-check": ShieldCheck,
   funnel: Funnel,
   settings: Settings,
+  send: Send,
+  bell: Bell,
 };

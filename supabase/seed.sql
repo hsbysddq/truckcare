@@ -6,16 +6,16 @@
 -- ============================================================
 
 insert into trucks (plat, nama, tipe) values
-  ('DK 1234 AB', 'Truk 1',  'distribusi'),
-  ('DK 5678 CD', 'Truk 2',  'distribusi'),
-  ('DK 9012 EF', 'Truk 3',  'distribusi'),
-  ('DK 3456 GH', 'Truk 4',  'distribusi'),
-  ('DK 7890 IJ', 'Truk 5',  'distribusi'),
-  ('DK 1122 KL', 'Truk 6',  'distribusi'),
-  ('DK 3344 MN', 'Truk 7',  'distribusi'),
-  ('DK 5566 OP', 'Truk 8',  'distribusi'),
-  ('DK 7788 QR', 'Truk 9',  'distribusi'),
-  ('DK 9900 ST', 'Truk 10', 'distribusi')
+  ('L 8821 AB', 'Truk 1',  'distribusi'),
+  ('L 9042 CD', 'Truk 2',  'distribusi'),
+  ('L 1187 EF', 'Truk 3',  'distribusi'),
+  ('L 5560 GH', 'Truk 4',  'distribusi'),
+  ('L 3324 IJ', 'Truk 5',  'distribusi'),
+  ('L 7743 KL', 'Truk 6',  'distribusi'),
+  ('L 2298 MN', 'Truk 7',  'distribusi'),
+  ('L 6612 OP', 'Truk 8',  'distribusi'),
+  ('L 4405 QR', 'Truk 9',  'distribusi'),
+  ('L 8890 ST', 'Truk 10', 'distribusi')
 on conflict (plat) do nothing;
 
 insert into drivers (nama, no_hp) values
@@ -29,14 +29,14 @@ on conflict do nothing;
 -- DB fresh. Idempotent via where not exists: aman di-rerun, tidak dobel.
 -- Trips/positions tidak di-seed: simulasi mengisinya otomatis tiap jalan.
 insert into pengaduan (plat, jam, deskripsi, status)
-select 'DK 5678 CD', '09:40', 'Truk ngebut di Jalan Raya Waru, nyalip dari kiri hampir menyerempet motor.', 'menunggu'
+select 'L 9042 CD', '09:40', 'Truk ngebut di Jalan Raya Waru, nyalip dari kiri hampir menyerempet motor.', 'menunggu'
 where not exists (
   select 1 from pengaduan
   where deskripsi = 'Truk ngebut di Jalan Raya Waru, nyalip dari kiri hampir menyerempet motor.'
 );
 
 insert into pengaduan (plat, jam, deskripsi, status)
-select 'DK 5566 OP', '07:15', 'Truk melaju kencang di simpang dekat permukiman pagi hari.', 'menunggu'
+select 'L 6612 OP', '07:15', 'Truk melaju kencang di simpang dekat permukiman pagi hari.', 'menunggu'
 where not exists (
   select 1 from pengaduan
   where deskripsi = 'Truk melaju kencang di simpang dekat permukiman pagi hari.'

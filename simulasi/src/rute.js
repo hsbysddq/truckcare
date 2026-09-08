@@ -1,120 +1,123 @@
 // Rute tetap (waypoint) untuk 10 truk — simulasi distribusi.
 // Format: [lat, lon, label, tiba_menit] — tiba_menit = menit sejak mulai perjalanan.
-// Koordinat contoh di sekitar Jawa (Denpasar → berbagai tujuan) — ganti sesuai kebutuhan demo.
+// Plat dan wilayah sengaja disamakan dengan armada dummy di lib/data.js:
+// seluruh rute berada di Jawa Timur (Surabaya, Sidoarjo, Gresik, Pasuruan, Malang).
 
 export const RUTE = [
-  // Truk 1 — Denpasar → Singaraja
+  // Truk 1 — Gudang Margomulyo → Pusat Distribusi Surabaya Utara
   {
-    truk: "DK 1234 AB",
-    asal: "Denpasar",
-    tujuan: "Singaraja",
+    truk: "L 8821 AB",
+    asal: "Gudang Margomulyo",
+    tujuan: "Pusat Distribusi Surabaya Utara",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.5300, 115.1900, "Mengwi", 25],
-      [-8.4200, 115.1400, "Pupuan", 70],
-      [-8.2100, 115.0800, "Seririt", 110],
-      [-8.1200, 115.0900, "Singaraja", 140],
+      [-7.2340, 112.6900, "Gudang Margomulyo", 0],
+      [-7.2050, 112.7350, "Tanjung Perak", 30],
+      [-7.2250, 112.7800, "Pusat Distribusi Surabaya Utara", 55],
     ],
   },
-  // Truk 2 — Denpasar → Gilimanuk
+  // Truk 2 — Depo Rungkut → Sidoarjo
   {
-    truk: "DK 5678 CD",
-    asal: "Denpasar",
-    tujuan: "Gilimanuk",
+    truk: "L 9042 CD",
+    asal: "Depo Rungkut",
+    tujuan: "Sidoarjo",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.5900, 115.0900, "Tabanan", 30],
-      [-8.4400, 114.9700, "Antosari", 70],
-      [-8.2700, 114.7800, "Negara", 120],
-      [-8.1600, 114.4400, "Gilimanuk", 160],
+      [-7.3300, 112.7700, "Depo Rungkut", 0],
+      [-7.3490, 112.7190, "Simpang Waru", 25],
+      [-7.4470, 112.7180, "Sidoarjo", 60],
     ],
   },
-  // Truk 3 — Denpasar → Klungkung
+  // Truk 3 — Pelabuhan Gresik → Krian (berhenti lama di rest area — skenario)
   {
-    truk: "DK 9012 EF",
-    asal: "Denpasar",
-    tujuan: "Klungkung",
+    truk: "L 1187 EF",
+    asal: "Pelabuhan Gresik",
+    tujuan: "Krian",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6300, 115.2700, "Gianyar", 35],
-      [-8.6200, 115.3600, "Bangli", 60],
-      [-8.5400, 115.4000, "Semarapura", 90],
+      [-7.1550, 112.6550, "Pelabuhan Gresik", 0],
+      [-7.2600, 112.6300, "Rest Area (stop 40 mnt)", 35],
+      [-7.3550, 112.6200, "Driyorejo", 95],
+      [-7.4110, 112.5820, "Krian", 120],
     ],
   },
-  // Truk 4 — Denpasar → Ubud (berhenti lama di rest area — skenario)
+  // Truk 4 — Gudang Sukolilo → Rungkut
   {
-    truk: "DK 3456 GH",
-    asal: "Denpasar",
-    tujuan: "Ubud",
+    truk: "L 5560 GH",
+    asal: "Gudang Sukolilo",
+    tujuan: "Rungkut",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6200, 115.2400, "Rest Area (stop 40 mnt)", 20],
-      [-8.5100, 115.2600, "Ubud", 55],
+      [-7.2900, 112.7950, "Gudang Sukolilo", 0],
+      [-7.3100, 112.7850, "Jalan MERR", 15],
+      [-7.3300, 112.7700, "Rungkut", 30],
     ],
   },
-  // Truk 5 — Denpasar → Nusa Dua (jarak pendek, normal)
+  // Truk 5 — Depo Sidoarjo → Krian
   {
-    truk: "DK 7890 IJ",
-    asal: "Denpasar",
-    tujuan: "Nusa Dua",
+    truk: "L 3324 IJ",
+    asal: "Depo Sidoarjo",
+    tujuan: "Krian",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.7200, 115.2000, "Kuta", 20],
-      [-8.8000, 115.2200, "Nusa Dua", 40],
+      [-7.4500, 112.7250, "Depo Sidoarjo", 0],
+      [-7.4300, 112.6500, "Sukodono", 30],
+      [-7.4110, 112.5820, "Krian", 60],
     ],
   },
-  // Truk 6 — Denpasar → Karangasem (melenceng dari rute — skenario)
+  // Truk 6 — Surabaya → Malang (rute panjang lewat Pandaan)
   {
-    truk: "DK 1122 KL",
-    asal: "Denpasar",
-    tujuan: "Karangasem",
+    truk: "L 7743 KL",
+    asal: "Surabaya",
+    tujuan: "Malang",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6300, 115.2700, "Gianyar", 30],
-      [-8.6100, 115.3600, "Bangli", 55],
-      [-8.4500, 115.6100, "Karangasem", 110],
+      [-7.3000, 112.7300, "Terminal Surabaya", 0],
+      [-7.5400, 112.7000, "Porong", 40],
+      [-7.6550, 112.6900, "Pandaan", 65],
+      [-7.7500, 112.7200, "Purwosari", 90],
+      [-7.8900, 112.6650, "Singosari", 120],
+      [-7.9770, 112.6300, "Malang", 145],
     ],
   },
-  // Truk 7 — Denpasar → Bedugul (dataran tinggi)
+  // Truk 7 — Surabaya → Pasuruan (berhenti di rest area Porong — skenario)
   {
-    truk: "DK 3344 MN",
-    asal: "Denpasar",
-    tujuan: "Bedugul",
+    truk: "L 2298 MN",
+    asal: "Surabaya",
+    tujuan: "Pasuruan",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.5300, 115.1900, "Mengwi", 25],
-      [-8.2800, 115.1600, "Bedugul", 75],
+      [-7.3300, 112.7700, "Gudang Rungkut", 0],
+      [-7.5300, 112.7050, "Rest Area (stop 40 mnt)", 40],
+      [-7.6450, 112.9080, "Pasuruan", 130],
     ],
   },
-  // Truk 8 — Denpasar → Canggu
+  // Truk 8 — Gresik → Kawasan Industri Manyar
   {
-    truk: "DK 5566 OP",
-    asal: "Denpasar",
-    tujuan: "Canggu",
+    truk: "L 6612 OP",
+    asal: "Gresik",
+    tujuan: "Kawasan Industri Manyar",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6800, 115.1600, "Kuta Utara", 20],
-      [-8.6400, 115.1400, "Canggu", 30],
+      [-7.1600, 112.6500, "Pelabuhan Gresik", 0],
+      [-7.1285, 112.6012, "Manyar", 25],
+      [-7.1050, 112.6100, "Kawasan Industri Manyar", 40],
     ],
   },
-  // Truk 9 — Denpasar → Sanur
+  // Truk 9 — Depo Wiyung → Krian
   {
-    truk: "DK 7788 QR",
-    asal: "Denpasar",
-    tujuan: "Sanur",
+    truk: "L 4405 QR",
+    asal: "Depo Wiyung",
+    tujuan: "Krian",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6800, 115.2500, "Sanur", 25],
+      [-7.3150, 112.6800, "Depo Wiyung", 0],
+      [-7.3550, 112.6200, "Driyorejo", 30],
+      [-7.4110, 112.5820, "Krian", 55],
     ],
   },
-  // Truk 10 — Denpasar → Jimbaran
+  // Truk 10 — Sidoarjo → Malang
   {
-    truk: "DK 9900 ST",
-    asal: "Denpasar",
-    tujuan: "Jimbaran",
+    truk: "L 8890 ST",
+    asal: "Sidoarjo",
+    tujuan: "Malang",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.7600, 115.1800, "Jimbaran", 35],
+      [-7.4500, 112.7250, "Depo Sidoarjo", 0],
+      [-7.6550, 112.6900, "Pandaan", 45],
+      [-7.8350, 112.6950, "Lawang", 85],
+      [-7.8900, 112.6650, "Singosari", 100],
+      [-7.9770, 112.6300, "Malang", 125],
     ],
   },
 ];
