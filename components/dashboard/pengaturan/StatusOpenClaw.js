@@ -97,6 +97,11 @@ export default function StatusOpenClaw() {
         </p>
       )}
 
+      <div className="mt-5 rounded-xl bg-slate-50 p-4">
+        <p className="text-sm font-semibold text-slate-900">{copy.modelTitle}</p>
+        <p className="mt-1 text-sm text-slate-600">{copy.modelNote}</p>
+      </div>
+
       <button
         type="button"
         onClick={handlePeriksaUlang}

@@ -25,15 +25,23 @@ export default function DashboardOverviewPage() {
 
   useEffect(() => {
     let batal = false;
-    fetch("/api/trucks", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+    async function muat() {
+      try {
+        const res = await fetch("/api/trucks", { cache: "no-store" });
         // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
-        if (!batal && Array.isArray(data)) setTrucks(data);
-      })
-      .catch(() => {});
+        if (!batal && res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) setTrucks(data);
+        }
+      } catch {}
+    }
+    muat();
+    // Polling seperti halaman Peta: simulator jalan terus, fetch sekali
+    // saat mount bikin peta overview cepat basi dibanding bot.
+    const interval = setInterval(muat, 5000);
     return () => {
       batal = true;
+      clearInterval(interval);
     };
   }, []);
 
