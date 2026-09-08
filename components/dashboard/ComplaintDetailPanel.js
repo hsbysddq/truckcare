@@ -275,15 +275,36 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
         <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
           {copy.attachmentsTitle}
         </h4>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          {[1, 2].map((n) => (
-            <div
-              key={n}
-              className="flex aspect-video items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-300"
-            >
-              <ImageIcon className="h-6 w-6" strokeWidth={1.5} />
+        <div className="mt-3">
+          {complaint.foto_url ? (
+            <div className="grid grid-cols-1 gap-3">
+              <a
+                href={complaint.foto_url}
+                target="_blank"
+                rel="noreferrer"
+                className="block overflow-hidden rounded-xl border border-slate-200"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={complaint.foto_url}
+                  alt="Lampiran laporan"
+                  className="h-auto w-full object-contain"
+                  loading="lazy"
+                />
+              </a>
             </div>
-          ))}
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2].map((n) => (
+                <div
+                  key={n}
+                  className="flex aspect-video items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-300"
+                >
+                  <ImageIcon className="h-6 w-6" strokeWidth={1.5} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
