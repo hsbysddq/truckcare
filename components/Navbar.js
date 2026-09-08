@@ -39,11 +39,16 @@ export default function Navbar({ forceSolid = false }) {
         isSolid ? "bg-white/95 backdrop-blur-sm shadow-sm" : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto flex h-(--navbar-height) max-w-7xl items-center px-6 lg:px-8">
+      <nav
+        className={`mx-auto flex max-w-7xl items-center px-6 transition-[height] duration-300 lg:px-8 ${
+          isSolid ? "h-(--navbar-height-compact)" : "h-(--navbar-height)"
+        }`}
+      >
         <div className="flex flex-1 justify-start">
           <Logo
             href="/"
             size="navbar"
+            compact={isSolid}
             tone={isSolid ? "dark" : "light"}
             priority
           />

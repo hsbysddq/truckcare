@@ -8,22 +8,26 @@ const SIZES = {
   navbar: { px: 44, box: "h-11 w-11 rounded-xl", text: "text-xl" },
   sidebar: { px: 40, box: "h-10 w-10 rounded-lg", text: "text-xl" },
 };
+// Ukuran logo saat navbar landing mengecil setelah scroll (36px).
+const COMPACT_BOX = "h-9 w-9 rounded-lg";
 
 export default function Logo({
   href = "/",
   size = "sidebar",
   tone = "dark",
+  compact = false,
   priority = false,
   className = "",
 }) {
   const s = SIZES[size] ?? SIZES.sidebar;
+  const box = compact ? COMPACT_BOX : s.box;
   return (
     <Link
       href={href}
       className={`flex min-h-11 cursor-pointer items-center gap-2.5 transition-opacity duration-200 hover:opacity-80 ${className}`}
     >
       <span
-        className={`flex flex-none items-center justify-center overflow-hidden bg-white shadow-sm ring-1 ring-black/5 ${s.box}`}
+        className={`flex flex-none items-center justify-center overflow-hidden bg-white shadow-sm ring-1 ring-black/5 transition-[height,width,border-radius] duration-300 ${box}`}
       >
         <Image
           src="/logo.png"

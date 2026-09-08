@@ -27,9 +27,13 @@
 }
 
 /* Satu-satunya sumber tinggi navbar. Dipakai Navbar (tinggi + ambang
-   IntersectionObserver), padding atas Hero, dan scroll-padding-top. */
+   IntersectionObserver), padding atas Hero, dan scroll-padding-top.
+   Versi compact (25% lebih pendek) hanya dipakai navbar saat sudah
+   scroll/putih solid; Hero tetap memakai nilai penuh supaya jaraknya
+   tidak bergeser saat navbar mengecil. */
 :root {
   --navbar-height: 4rem;
+  --navbar-height-compact: calc(var(--navbar-height) * 0.75);
 }
 @media (min-width: 1024px) {
   :root {
