@@ -150,6 +150,18 @@ export default function AnalitikDashboard() {
         </ChartCard>
 
         <ChartCard
+          title={copy.charts.hourDistribution.title}
+          subtitle={copy.charts.hourDistribution.subtitle}
+          insight={data?.hourDistribution?.insight}
+          loading={loading}
+          empty={empty || data?.hourDistribution?.empty}
+        >
+          {data && <HourDistributionChart data={data.hourDistribution.data} />}
+        </ChartCard>
+      </div>
+
+      <div className={dimmed}>
+        <ChartCard
           title={copy.charts.speedingByPlate.title}
           subtitle={copy.charts.speedingByPlate.subtitle}
           insight={data?.speedingByPlate?.insight}
@@ -158,7 +170,9 @@ export default function AnalitikDashboard() {
         >
           {data && <SpeedingByPlateChart data={data.speedingByPlate.data} />}
         </ChartCard>
+      </div>
 
+      <div className={dimmed}>
         <ChartCard
           title={copy.charts.fuel.title}
           subtitle={copy.charts.fuel.subtitle}
@@ -167,16 +181,6 @@ export default function AnalitikDashboard() {
           empty={empty || data?.fuelByTruck?.empty}
         >
           {data && <FuelListDetail trucks={data.fuelByTruck.trucks} />}
-        </ChartCard>
-
-        <ChartCard
-          title={copy.charts.hourDistribution.title}
-          subtitle={copy.charts.hourDistribution.subtitle}
-          insight={data?.hourDistribution?.insight}
-          loading={loading}
-          empty={empty || data?.hourDistribution?.empty}
-        >
-          {data && <HourDistributionChart data={data.hourDistribution.data} />}
         </ChartCard>
       </div>
 

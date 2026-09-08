@@ -22,31 +22,31 @@ function fill(template, vars) {
   return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? ""));
 }
 
-// Label pill di atas titik sorot (rect membulat + teks putih), seperti
+// Label pill untuk titik sorot (rect membulat + teks putih), seperti
 // referensi. viewBox dari ReferenceDot = kotak lingkaran; pusat = x + w/2.
+// Pill diberi jarak dari cincin; bila titik terlalu dekat tepi atas, pill
+// dibalik ke bawah titik supaya tidak terpotong.
+const PILL_GAP = 14;
+const PILL_HEIGHT = 22;
 function PillLabel({ viewBox, text, color }) {
   const cx = viewBox.x + viewBox.width / 2;
-  const top = viewBox.y;
   const width = text.length * 7 + 16;
-  const height = 22;
-  const y = top - height - 10;
+  const above = viewBox.y - PILL_GAP - PILL_HEIGHT >= 2;
+  const y = above
+    ? viewBox.y - PILL_GAP - PILL_HEIGHT
+    : viewBox.y + viewBox.height + PILL_GAP;
+  const tipY = above ? y + PILL_HEIGHT : y;
+  const tipPoint = above ? tipY + 5 : tipY - 5;
   return (
     <g>
-      <rect
-        x={cx - width / 2}
-        y={y}
-        width={width}
-        height={height}
-        rx={11}
-        fill={color}
-      />
+      <rect x={cx - width / 2} y={y} width={width} height={PILL_HEIGHT} rx={11} fill={color} />
       <polygon
-        points={`${cx - 4},${y + height} ${cx + 4},${y + height} ${cx},${y + height + 5}`}
+        points={`${cx - 4},${tipY} ${cx + 4},${tipY} ${cx},${tipPoint}`}
         fill={color}
       />
       <text
         x={cx}
-        y={y + height / 2 + 4}
+        y={y + PILL_HEIGHT / 2 + 4}
         textAnchor="middle"
         fontSize={11}
         fontWeight={700}
@@ -132,7 +132,6 @@ export default function FuelListDetail({ trucks }) {
 
   const anomalies = selected.points.filter((p) => p.anomaly);
   const refills = selected.points.filter((p) => p.refill);
-  const tickInterval = selected.points.length > 45 ? 9 : selected.points.length > 10 ? 3 : 0;
   const summary = [
     {
       label: copy.summary.avgDailyLabel,
@@ -147,11 +146,11 @@ export default function FuelListDetail({ trucks }) {
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:h-80 md:grid-cols-[minmax(0,15rem)_1fr]">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[300px_minmax(0,1fr)]">
       <ul
         role="listbox"
         aria-label={copy.title}
-        className="max-h-56 space-y-1 overflow-y-auto pr-1 md:max-h-80"
+        className="max-h-56 space-y-1 overflow-y-auto pr-1 md:max-h-[460px]"
       >
         {trucks.map((truck) => {
           const active = truck.plateNumber === selected.plateNumber;
@@ -219,19 +218,22 @@ export default function FuelListDetail({ trucks }) {
           </span>
         </div>
 
-        <div className="mt-2 h-56 min-h-0 flex-1">
+        <div className="mt-2 h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={selected.points}
-              margin={{ top: 36, right: 12, bottom: 0, left: -16 }}
+              margin={{ top: 48, right: 32, bottom: 8, left: -8 }}
             >
               <CartesianGrid stroke="#e2e8f0" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 10, fill: "#64748b" }}
+                tick={{ fontSize: 11, fill: "#64748b" }}
                 tickLine={false}
                 axisLine={{ stroke: "#e2e8f0" }}
-                interval={tickInterval}
+                interval="preserveStartEnd"
+                minTickGap={28}
+                tickMargin={10}
+                height={36}
               />
               <YAxis
                 domain={[0, 100]}
