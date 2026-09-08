@@ -1,33 +1,19 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
 import Image from "next/image";
 import { howItWorksSection } from "@/lib/content";
 import FadeIn from "@/components/FadeIn";
-
-const diagramExists = existsSync(
-  path.join(process.cwd(), "public", howItWorksSection.diagramImage)
-);
 
 export default function HowItWorksSection() {
   return (
     <section id="cara-kerja" className="bg-slate-950 py-20 sm:py-24">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 px-6 lg:grid-cols-2 lg:px-8">
-        <FadeIn className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-dashed border-white/15 bg-white/5">
-          {diagramExists ? (
-            <Image
-              src={howItWorksSection.diagramImage}
-              alt={howItWorksSection.diagramAlt}
-              fill
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-contain p-8"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <span className="text-sm font-medium uppercase tracking-wider text-white/40">
-                Diagram Alur Pelaporan
-              </span>
-            </div>
-          )}
+        <FadeIn className="relative aspect-[2/1] w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+          <Image
+            src={howItWorksSection.diagramImage}
+            alt={howItWorksSection.diagramAlt}
+            fill
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="object-contain p-4 sm:p-6"
+          />
         </FadeIn>
 
         <FadeIn delay={100}>
