@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
 import { pengaduanPublikPage } from "@/lib/content";
+import { isValidPlate, normalizePlate } from "@/lib/format";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const MAKS_FOTO_BYTES = 2 * 1024 * 1024;
 const MIN_DESKRIPSI = 20;
 const BUCKET = "foto-pengaduan";
-
-const PLATE_PATTERN = /^[a-z]{1,2}\s*\d{1,4}\s*[a-z]{0,3}$/i;
 
 function tanggalHariIni() {
   const sekarang = new Date();
@@ -43,7 +42,7 @@ export default function PengaduanForm() {
 
   function validasi() {
     const baru = {};
-    if (!PLATE_PATTERN.test(nilai.plat.trim())) baru.plat = copy.errors.plate;
+    if (!isValidPlate(nilai.plat)) baru.plat = copy.errors.plate;
     if (!nilai.tanggal) baru.tanggal = copy.errors.date;
     if (nilai.deskripsi.trim().length < MIN_DESKRIPSI)
       baru.deskripsi = copy.errors.description;
@@ -119,7 +118,7 @@ export default function PengaduanForm() {
 
     try {
       const baris = await simpan(
-        nilai.plat.trim().toUpperCase(),
+        normalizePlate(nilai.plat),
         nilai.tanggal,
         nilai.jam,
         nilai.deskripsi,

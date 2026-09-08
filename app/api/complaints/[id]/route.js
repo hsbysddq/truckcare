@@ -16,17 +16,22 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "status wajib: tervalidasi | ditolak" }, { status: 400 });
   }
 
+  // diputuskan_oleh membedakan keputusan agent, operator, dan fallback
+  // sistem — dashboard hanya menampilkan tingkat keyakinan untuk 'agent'.
   const update = {};
   if (status === "valid") {
     const hasil = await validasiAI(id);
     if (hasil) {
       status = hasil.status;
       if (hasil.alasan) update.alasan = hasil.alasan;
+      update.diputuskan_oleh = "agent";
     } else {
       update.alasan = "Validasi AI tidak tersedia, diterima otomatis.";
+      update.diputuskan_oleh = "sistem";
     }
   } else {
     update.alasan = body.alasan ?? "Ditolak manual oleh operator.";
+    update.diputuskan_oleh = "operator";
   }
   update.status = status;
 

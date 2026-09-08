@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { getComplaints } from "@/lib/data";
+import { getComplaints, getTrucks } from "@/lib/data";
 import { pengaduanManagementPage } from "@/lib/content";
+import { formatTicketId, normalizePlate } from "@/lib/format";
 import ComplaintCard from "@/components/dashboard/ComplaintCard";
 import ComplaintDetailPanel from "@/components/dashboard/ComplaintDetailPanel";
 
@@ -12,6 +13,25 @@ export default function DashboardPengaduanPage() {
   const [activeFilter, setActiveFilter] = useState("semua");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(complaints[0]?.id ?? null);
+  // Plat armada untuk menjelaskan kenapa bukti telematika kosong.
+  const [fleetPlates, setFleetPlates] = useState(
+    () => new Set(getTrucks().map((t) => normalizePlate(t.plateNumber)))
+  );
+
+  useEffect(() => {
+    let batal = false;
+    fetch("/api/trucks", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!batal && Array.isArray(data)) {
+          setFleetPlates(new Set(data.map((t) => normalizePlate(t.plateNumber))));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      batal = true;
+    };
+  }, []);
 
   useEffect(() => {
     let batal = false;
@@ -40,8 +60,9 @@ export default function DashboardPengaduanPage() {
       const matchesQuery =
         q === "" ||
         complaint.id.toLowerCase().includes(q) ||
+        formatTicketId(complaint.id).toLowerCase().includes(q) ||
         complaint.plateNumber.toLowerCase().includes(q) ||
-        complaint.lokasi.toLowerCase().includes(q);
+        (complaint.lokasi ?? "").toLowerCase().includes(q);
       return matchesFilter && matchesQuery;
     });
   }, [complaints, activeFilter, query]);
@@ -119,7 +140,11 @@ export default function DashboardPengaduanPage() {
           </div>
         </div>
 
-        <ComplaintDetailPanel complaint={selected} onStatusChange={handleStatusChange} />
+        <ComplaintDetailPanel
+          complaint={selected}
+          onStatusChange={handleStatusChange}
+          fleetPlates={fleetPlates}
+        />
       </div>
     </div>
   );

@@ -1,9 +1,19 @@
 import { MapPin, Truck } from "lucide-react";
-import { complaintStatusMeta, agentConfidenceMeta } from "@/lib/content";
+import {
+  complaintStatusMeta,
+  agentConfidenceMeta,
+  pengaduanManagementPage,
+} from "@/lib/content";
+import { formatTicketId } from "@/lib/format";
 
 export default function ComplaintCard({ complaint, active, onSelect }) {
+  const copy = pengaduanManagementPage;
   const status = complaintStatusMeta[complaint.status] ?? complaintStatusMeta.pending;
-  const confidence = agentConfidenceMeta[complaint.agentConfidence] ?? agentConfidenceMeta.rendah;
+  // Badge keyakinan hanya bila agent benar-benar menganalisis laporan ini.
+  const confidence =
+    complaint.decisionSource === "agent" && complaint.agentConfidence
+      ? agentConfidenceMeta[complaint.agentConfidence] ?? null
+      : null;
 
   return (
     <button
@@ -16,41 +26,45 @@ export default function ComplaintCard({ complaint, active, onSelect }) {
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex-none text-sm font-semibold text-slate-900">
-            #{complaint.id}
-          </span>
-          <span
-            className={`inline-flex flex-none items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${confidence.badgeClass}`}
-          >
-            AI: {confidence.label}
-          </span>
-        </div>
-        <span className="flex-none text-xs text-slate-400">
+        <span className="min-w-0 truncate font-mono text-sm font-semibold text-slate-900">
+          {formatTicketId(complaint.id)}
+        </span>
+        <span className="flex-none whitespace-nowrap text-xs text-slate-400">
           {complaint.relativeTime ?? complaint.incidentAt}
         </span>
       </div>
 
-      <h3 className="mt-2 text-sm font-semibold text-slate-900">
+      <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-slate-900">
         {complaint.judul}
       </h3>
 
-      <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
-        <MapPin className="h-3.5 w-3.5 flex-none" strokeWidth={1.75} />
-        <span className="truncate">{complaint.lokasi}</span>
-      </div>
+      {complaint.lokasi && (
+        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+          <MapPin className="h-3.5 w-3.5 flex-none" strokeWidth={1.75} />
+          <span className="truncate">{complaint.lokasi}</span>
+        </div>
+      )}
 
       <div className="mt-3 border-t border-slate-100 pt-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-slate-600">
             <Truck className="h-3.5 w-3.5 flex-none" strokeWidth={1.75} />
-            <span className="whitespace-nowrap">{complaint.plateNumber}</span>
+            <span className="whitespace-nowrap font-mono">{complaint.plateNumber}</span>
           </div>
-          <span
-            className={`inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-semibold ${status.badgeClass}`}
-          >
-            {status.label}
-          </span>
+          <div className="flex flex-none flex-wrap items-center gap-2">
+            {confidence && (
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${confidence.badgeClass}`}
+              >
+                {copy.aiBadgePrefix}: {confidence.label}
+              </span>
+            )}
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${status.badgeClass}`}
+            >
+              {status.label}
+            </span>
+          </div>
         </div>
       </div>
     </button>
