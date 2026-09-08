@@ -15,19 +15,19 @@ export default function WhySection() {
           </p>
         </FadeIn>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="mt-16 grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2">
           {whySection.cards.map((card, index) => {
             const Icon = iconMap[card.icon];
             return (
               <FadeIn
                 key={card.title}
                 delay={index * 100}
-                className="rounded-2xl border border-slate-200 bg-white p-8"
+                className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-8"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-tint text-accent">
+                <div className="flex h-12 w-12 flex-none items-center justify-center rounded-xl bg-accent-tint text-accent">
                   <Icon className="h-6 w-6" strokeWidth={1.75} />
                 </div>
-                <h3 className="mt-6 text-lg font-semibold text-slate-900">
+                <h3 className="mt-6 min-h-14 text-lg font-semibold leading-7 text-slate-900">
                   {card.title}
                 </h3>
                 <p className="mt-3 text-base leading-relaxed text-slate-500">

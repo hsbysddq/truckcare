@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Truck, User, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
-import { siteConfig, dashboardNav, dashboardSidebar } from "@/lib/content";
+import { User, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { dashboardNav, dashboardSidebar } from "@/lib/content";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { iconMap } from "@/components/icon-map";
+import Logo from "@/components/Logo";
 
 export default function Sidebar({
   open,
@@ -42,20 +43,11 @@ export default function Sidebar({
         } ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex h-20 flex-none items-center justify-between gap-1 px-4">
-          <Link
-            href="/"
-            title={siteConfig.name}
-            className={`flex items-center gap-2 text-lg font-semibold tracking-tight text-accent transition-opacity duration-200 hover:opacity-80 ${
-              sempit ? "mx-auto" : ""
-            }`}
-          >
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-accent text-white">
-              <Truck className="h-5 w-5" strokeWidth={2} />
-            </span>
-            {!sempit && (
-              <span className="whitespace-nowrap">{siteConfig.name}</span>
-            )}
-          </Link>
+          <Logo
+            href="/dashboard"
+            size="sidebar"
+            className={sempit ? "mx-auto [&>span:last-child]:hidden" : ""}
+          />
           <button
             type="button"
             onClick={onToggleCollapse}

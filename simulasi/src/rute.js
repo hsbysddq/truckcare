@@ -1,120 +1,142 @@
 // Rute tetap (waypoint) untuk 10 truk — simulasi distribusi.
 // Format: [lat, lon, label, tiba_menit] — tiba_menit = menit sejak mulai perjalanan.
-// Koordinat contoh di sekitar Jawa (Denpasar → berbagai tujuan) — ganti sesuai kebutuhan demo.
+// Plat dan rute sengaja disamakan dengan armada dummy di lib/data.js:
+// seluruhnya antar kota Jawa Timur (plat L, W, N, AG).
 
 export const RUTE = [
-  // Truk 1 — Denpasar → Singaraja
+  // Truk 1 — Surabaya → Malang
   {
-    truk: "DK 1234 AB",
-    asal: "Denpasar",
-    tujuan: "Singaraja",
+    truk: "L 8821 AB",
+    asal: "Surabaya",
+    tujuan: "Malang",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.5300, 115.1900, "Mengwi", 25],
-      [-8.4200, 115.1400, "Pupuan", 70],
-      [-8.2100, 115.0800, "Seririt", 110],
-      [-8.1200, 115.0900, "Singaraja", 140],
+      [-7.3000, 112.7300, "Terminal Surabaya", 0],
+      [-7.3500, 112.7200, "Simpang Waru", 15],
+      [-7.5400, 112.7000, "Porong", 45],
+      [-7.6550, 112.6900, "Pandaan", 65],
+      [-7.7500, 112.7200, "Purwosari", 90],
+      [-7.8350, 112.6950, "Lawang", 110],
+      [-7.8900, 112.6650, "Singosari", 125],
+      [-7.9770, 112.6300, "Malang", 145],
     ],
   },
-  // Truk 2 — Denpasar → Gilimanuk
+  // Truk 2 — Sidoarjo → Pasuruan
   {
-    truk: "DK 5678 CD",
-    asal: "Denpasar",
-    tujuan: "Gilimanuk",
+    truk: "W 9042 CD",
+    asal: "Sidoarjo",
+    tujuan: "Pasuruan",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.5900, 115.0900, "Tabanan", 30],
-      [-8.4400, 114.9700, "Antosari", 70],
-      [-8.2700, 114.7800, "Negara", 120],
-      [-8.1600, 114.4400, "Gilimanuk", 160],
+      [-7.4470, 112.7180, "Depo Sidoarjo", 0],
+      [-7.5500, 112.7200, "Gempol", 25],
+      [-7.6000, 112.7900, "Bangil", 45],
+      [-7.6450, 112.9080, "Pasuruan", 75],
     ],
   },
-  // Truk 3 — Denpasar → Klungkung
+  // Truk 3 — Gresik → Surabaya (berhenti lama di rest area — skenario)
   {
-    truk: "DK 9012 EF",
-    asal: "Denpasar",
-    tujuan: "Klungkung",
+    truk: "W 1187 EF",
+    asal: "Gresik",
+    tujuan: "Surabaya",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6300, 115.2700, "Gianyar", 35],
-      [-8.6200, 115.3600, "Bangli", 60],
-      [-8.5400, 115.4000, "Semarapura", 90],
+      [-7.1600, 112.6500, "Pelabuhan Gresik", 0],
+      [-7.1850, 112.6550, "Rest Area (stop 40 mnt)", 15],
+      [-7.2000, 112.6600, "Romokalisari", 65],
+      [-7.2350, 112.6900, "Gudang Margomulyo", 85],
+      [-7.2050, 112.7350, "Pelabuhan Tanjung Perak", 105],
     ],
   },
-  // Truk 4 — Denpasar → Ubud (berhenti lama di rest area — skenario)
+  // Truk 4 — Surabaya → Gresik (Kawasan Industri Manyar)
   {
-    truk: "DK 3456 GH",
-    asal: "Denpasar",
-    tujuan: "Ubud",
+    truk: "L 5560 GH",
+    asal: "Surabaya",
+    tujuan: "Gresik",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6200, 115.2400, "Rest Area (stop 40 mnt)", 20],
-      [-8.5100, 115.2600, "Ubud", 55],
+      [-7.2050, 112.7350, "Pelabuhan Tanjung Perak", 0],
+      [-7.2350, 112.6900, "Gudang Margomulyo", 20],
+      [-7.2000, 112.6600, "Romokalisari", 35],
+      [-7.1050, 112.6100, "Kawasan Industri Manyar", 60],
     ],
   },
-  // Truk 5 — Denpasar → Nusa Dua (jarak pendek, normal)
+  // Truk 5 — Sidoarjo → Krian
   {
-    truk: "DK 7890 IJ",
-    asal: "Denpasar",
-    tujuan: "Nusa Dua",
+    truk: "W 3324 IJ",
+    asal: "Sidoarjo",
+    tujuan: "Krian",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.7200, 115.2000, "Kuta", 20],
-      [-8.8000, 115.2200, "Nusa Dua", 40],
+      [-7.4470, 112.7180, "Depo Sidoarjo", 0],
+      [-7.4300, 112.6500, "Sukodono", 30],
+      [-7.4100, 112.5800, "Gudang Krian", 60],
     ],
   },
-  // Truk 6 — Denpasar → Karangasem (melenceng dari rute — skenario)
+  // Truk 6 — Malang → Kediri
   {
-    truk: "DK 1122 KL",
-    asal: "Denpasar",
-    tujuan: "Karangasem",
+    truk: "N 7743 KL",
+    asal: "Malang",
+    tujuan: "Kediri",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6300, 115.2700, "Gianyar", 30],
-      [-8.6100, 115.3600, "Bangli", 55],
-      [-8.4500, 115.6100, "Karangasem", 110],
+      [-7.9770, 112.6300, "Malang", 0],
+      [-7.8700, 112.5300, "Batu", 30],
+      [-7.8400, 112.4700, "Pujon", 50],
+      [-7.8800, 112.3800, "Ngantang", 75],
+      [-7.8500, 112.3000, "Kandangan", 95],
+      [-7.7700, 112.2000, "Pare", 120],
+      [-7.8200, 112.0100, "Kediri", 150],
     ],
   },
-  // Truk 7 — Denpasar → Bedugul (dataran tinggi)
+  // Truk 7 — Pasuruan → Malang (berhenti di rest area Purwosari — skenario)
   {
-    truk: "DK 3344 MN",
-    asal: "Denpasar",
-    tujuan: "Bedugul",
+    truk: "N 2298 MN",
+    asal: "Pasuruan",
+    tujuan: "Malang",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.5300, 115.1900, "Mengwi", 25],
-      [-8.2800, 115.1600, "Bedugul", 75],
+      [-7.6450, 112.9080, "Pasuruan", 0],
+      [-7.6000, 112.7900, "Bangil", 30],
+      [-7.6550, 112.6900, "Pandaan", 55],
+      [-7.7500, 112.7200, "Rest Area (stop 40 mnt)", 80],
+      [-7.8350, 112.6950, "Lawang", 140],
+      [-7.8900, 112.6650, "Singosari", 155],
+      [-7.9770, 112.6300, "Malang", 175],
     ],
   },
-  // Truk 8 — Denpasar → Canggu
+  // Truk 8 — Gresik → Surabaya
   {
-    truk: "DK 5566 OP",
-    asal: "Denpasar",
-    tujuan: "Canggu",
+    truk: "W 6612 OP",
+    asal: "Gresik",
+    tujuan: "Surabaya",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6800, 115.1600, "Kuta Utara", 20],
-      [-8.6400, 115.1400, "Canggu", 30],
+      [-7.1600, 112.6500, "Pelabuhan Gresik", 0],
+      [-7.2000, 112.6600, "Romokalisari", 20],
+      [-7.2350, 112.6900, "Gudang Margomulyo", 40],
+      [-7.2050, 112.7350, "Pelabuhan Tanjung Perak", 60],
     ],
   },
-  // Truk 9 — Denpasar → Sanur
+  // Truk 9 — Kediri → Malang
   {
-    truk: "DK 7788 QR",
-    asal: "Denpasar",
-    tujuan: "Sanur",
+    truk: "AG 4405 QR",
+    asal: "Kediri",
+    tujuan: "Malang",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.6800, 115.2500, "Sanur", 25],
+      [-7.8200, 112.0100, "Kediri", 0],
+      [-7.7700, 112.2000, "Pare", 30],
+      [-7.8500, 112.3000, "Kandangan", 55],
+      [-7.8800, 112.3800, "Ngantang", 75],
+      [-7.8400, 112.4700, "Pujon", 100],
+      [-7.8700, 112.5300, "Batu", 120],
+      [-7.9770, 112.6300, "Malang", 150],
     ],
   },
-  // Truk 10 — Denpasar → Jimbaran
+  // Truk 10 — Surabaya → Malang
   {
-    truk: "DK 9900 ST",
-    asal: "Denpasar",
-    tujuan: "Jimbaran",
+    truk: "L 8890 ST",
+    asal: "Surabaya",
+    tujuan: "Malang",
     waypoints: [
-      [-8.6500, 115.2166, "Denpasar", 0],
-      [-8.7600, 115.1800, "Jimbaran", 35],
+      [-7.3000, 112.7300, "Terminal Surabaya", 0],
+      [-7.5400, 112.7000, "Porong", 40],
+      [-7.6550, 112.6900, "Pandaan", 60],
+      [-7.8350, 112.6950, "Lawang", 100],
+      [-7.8900, 112.6650, "Singosari", 115],
+      [-7.9770, 112.6300, "Malang", 135],
     ],
   },
 ];

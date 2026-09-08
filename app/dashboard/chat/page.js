@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fetchChatHistory, sendMessageToAgent } from "@/lib/agent";
+import { chatPage } from "@/lib/content";
 import ChatHeader from "@/components/dashboard/chat/ChatHeader";
 import ChatEmptyState from "@/components/dashboard/chat/ChatEmptyState";
 import ChatMessage from "@/components/dashboard/chat/ChatMessage";
@@ -14,6 +15,7 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const bottomRef = useRef(null);
+  const contextSentRef = useRef(false);
 
   useEffect(() => {
     let batal = false;
@@ -29,6 +31,16 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages, isTyping]);
+
+  // Dibuka dari halaman detail truk (?truk=PLAT): langsung tanyakan truk itu.
+  useEffect(() => {
+    if (contextSentRef.current) return;
+    const plate = new URLSearchParams(window.location.search).get("truk");
+    if (!plate) return;
+    contextSentRef.current = true;
+    handleSend(chatPage.truckContextQuestion.replace("{plate}", plate));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSend(text) {
     setMessages((prev) => [

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { Menu, X } from "lucide-react";
-import { navbar, siteConfig } from "@/lib/content";
+import { navbar } from "@/lib/content";
+import Logo from "@/components/Logo";
 
 export default function Navbar({ forceSolid = false }) {
   const [scrolled, setScrolled] = useState(false);
@@ -37,28 +36,12 @@ export default function Navbar({ forceSolid = false }) {
     >
       <nav className="mx-auto flex h-24 max-w-7xl items-center px-6 lg:px-8">
         <div className="flex flex-1 justify-start">
-          <Link
+          <Logo
             href="/"
-            className="flex min-h-11 cursor-pointer items-center gap-2.5 transition-opacity duration-200 hover:opacity-80"
-          >
-            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
-              <Image
-                src="/logo.png"
-                alt={siteConfig.name}
-                width={36}
-                height={36}
-                className="h-full w-full object-contain"
-                priority
-              />
-            </span>
-            <span
-              className={`text-base font-bold tracking-tight ${
-                isSolid ? "text-accent" : "text-white"
-              }`}
-            >
-              {siteConfig.name}
-            </span>
-          </Link>
+            size="navbar"
+            tone={isSolid ? "dark" : "light"}
+            priority
+          />
         </div>
 
         <div className="hidden items-center gap-8 lg:flex">

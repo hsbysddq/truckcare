@@ -6,7 +6,11 @@ import { dashboardNav } from "@/lib/content";
 
 export default function DashboardHeader({ onOpenSidebar }) {
   const pathname = usePathname();
-  const current = dashboardNav.find((item) => item.href === pathname);
+  const current = dashboardNav.find(
+    (item) =>
+      item.href === pathname ||
+      (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`))
+  );
   const title = current?.label ?? "Dashboard";
 
   return (
