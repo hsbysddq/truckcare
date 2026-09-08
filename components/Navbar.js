@@ -74,7 +74,7 @@ export default function Navbar({ forceSolid = false }) {
           <div className="hidden items-center gap-3 lg:flex">
             <a
               href={navbar.secondaryCta.href}
-              className={`inline-flex min-h-11 items-center justify-center rounded-full border px-5 py-2.5 text-base font-semibold transition-colors ${
+              className={`inline-flex min-h-10 items-center justify-center rounded-full border px-4 py-2 text-base font-semibold transition-colors ${
                 isSolid
                   ? "border-accent/30 text-accent hover:bg-accent-tint"
                   : "border-white/50 text-white hover:bg-white/10"
@@ -84,7 +84,7 @@ export default function Navbar({ forceSolid = false }) {
             </a>
             <a
               href={navbar.primaryCta.href}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 py-2.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-accent-dark"
+              className="inline-flex min-h-10 items-center justify-center rounded-full border border-transparent bg-accent px-4 py-2 text-base font-semibold text-white shadow-sm transition-colors hover:bg-accent-dark"
             >
               {navbar.primaryCta.label}
             </a>
