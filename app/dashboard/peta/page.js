@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import GlossaryText from "@/components/dashboard/GlossaryText";
 import dynamic from "next/dynamic";
 import { truckStatusMeta, petaPage } from "@/lib/content";
 
@@ -70,7 +71,7 @@ export default function PetaPage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
           {petaPage.title}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">{petaPage.subtitle}</p>
+        <p className="mt-1 text-sm text-slate-500"><GlossaryText text={petaPage.subtitle} /></p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.8fr_1fr]">

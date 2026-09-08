@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import GlossaryText from "@/components/dashboard/GlossaryText";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -385,7 +386,7 @@ export default function FuelListDetail({ trucks }) {
             <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
               {summary.map((item) => (
                 <div key={item.label} className="flex items-baseline gap-1">
-                  <dt>{item.label}</dt>
+                  <dt><GlossaryText text={item.label} /></dt>
                   <dd className={`font-semibold ${item.danger ? "text-red-600" : "text-slate-900"}`}>
                     {item.value}
                   </dd>

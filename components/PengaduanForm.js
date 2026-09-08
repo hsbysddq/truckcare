@@ -183,6 +183,9 @@ export default function PengaduanForm() {
           {copy.formTitle}
         </h2>
         <p className="mt-1 text-sm text-slate-500">{copy.privacyNote}</p>
+        <p className="mt-3 rounded-xl bg-accent-tint px-4 py-3 text-sm leading-relaxed text-accent">
+          {copy.introNote}
+        </p>
       </div>
 
       <div className="space-y-6 px-6 py-8 sm:px-8">

@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Fuel, Navigation, PauseCircle } from "lucide-react";
+import GlossaryText from "@/components/dashboard/GlossaryText";
 import { jadwalPage } from "@/lib/content";
 import { formatDateTime } from "@/lib/schedule-analysis";
 
@@ -18,7 +19,7 @@ export default function ScheduleFindings({ findings, onSelectSchedule }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">{copy.title}</h2>
-          <p className="mt-1 text-xs text-slate-500">{copy.subtitle}</p>
+          <p className="mt-1 text-xs text-slate-500"><GlossaryText text={copy.subtitle} /></p>
         </div>
         <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
           {findings.length}

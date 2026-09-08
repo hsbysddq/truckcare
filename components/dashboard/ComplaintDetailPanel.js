@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import GlossaryText from "@/components/dashboard/GlossaryText";
 import {
   Bot,
   Check,
@@ -156,7 +157,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
               <span
                 className={`inline-flex flex-none items-center rounded-full px-3 py-1 text-xs font-semibold ${confidence.badgeClass}`}
               >
-                {copy.agentBox.confidenceLabel}: {confidence.label}
+                <GlossaryText text={copy.agentBox.confidenceLabel} />: {confidence.label}
               </span>
             )}
           </div>
@@ -196,7 +197,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
             <div className="flex flex-col items-center rounded-xl bg-slate-50 px-6 py-8 text-center">
               <SearchX className="h-6 w-6 text-slate-400" strokeWidth={1.75} />
               <p className="mt-3 text-sm font-semibold text-slate-700">
-                {copy.chart.empty.title}
+                <GlossaryText text={copy.chart.empty.title} />
               </p>
               <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
                 {platTerdaftar
@@ -237,7 +238,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
 
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            {copy.telemetryInfo.title}
+            <GlossaryText text={copy.telemetryInfo.title} />
           </h4>
           <dl className="mt-3 space-y-2 text-sm">
             <div className="flex items-center justify-between gap-3">

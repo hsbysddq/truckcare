@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import GlossaryText from "@/components/dashboard/GlossaryText";
 import { Search } from "lucide-react";
 import { getComplaints, getTrucks } from "@/lib/data";
 import { pengaduanManagementPage } from "@/lib/content";
@@ -83,7 +84,7 @@ export default function DashboardPengaduanPage() {
             {pengaduanManagementPage.title}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {pengaduanManagementPage.subtitle}
+            <GlossaryText text={pengaduanManagementPage.subtitle} />
           </p>
         </div>
         <div className="relative w-full lg:w-80">

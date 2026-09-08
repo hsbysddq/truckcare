@@ -1,4 +1,5 @@
 import Link from "next/link";
+import GlossaryText from "@/components/dashboard/GlossaryText";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bot } from "lucide-react";
 import { getTruckById, getTruckHistory } from "@/lib/data";
@@ -157,7 +158,7 @@ export default async function TruckDetailPage({ params }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-lg font-semibold text-slate-900">{copy.speedChart.title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{copy.speedChart.subtitle}</p>
+          <p className="mt-1 text-sm text-slate-500"><GlossaryText text={copy.speedChart.subtitle} /></p>
           <div className="mt-4">
             {daySpeed.length > 0 ? (
               <TruckSpeedChart data={daySpeed} limitKph={copy.speedLimitKph} />

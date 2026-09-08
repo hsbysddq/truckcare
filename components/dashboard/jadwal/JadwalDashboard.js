@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import GlossaryText from "@/components/dashboard/GlossaryText";
 import { Plus } from "lucide-react";
 import { jadwalPage, scheduleStatusMeta } from "@/lib/content";
 import { getTrucks, getDrivers } from "@/lib/data";
@@ -103,7 +104,7 @@ export default function JadwalDashboard({ apiBase = "/api/schedules" }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{copy.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{copy.subtitle}</p>
+          <p className="mt-1 text-sm text-slate-500"><GlossaryText text={copy.subtitle} /></p>
         </div>
         <button
           type="button"
