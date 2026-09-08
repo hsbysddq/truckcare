@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getChatHistory } from "@/lib/data";
-import { sendMessageToAgent } from "@/lib/agent";
+import { fetchChatHistory, sendMessageToAgent } from "@/lib/agent";
 import { chatPage } from "@/lib/content";
 import ChatHeader from "@/components/dashboard/chat/ChatHeader";
 import ChatEmptyState from "@/components/dashboard/chat/ChatEmptyState";
@@ -12,10 +11,22 @@ import ChatInput from "@/components/dashboard/chat/ChatInput";
 import AgentActivityPanel from "@/components/dashboard/chat/AgentActivityPanel";
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState(() => getChatHistory());
+  const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
   const bottomRef = useRef(null);
   const contextSentRef = useRef(false);
+
+  useEffect(() => {
+    let batal = false;
+    fetchChatHistory().then((riwayat) => {
+      if (!batal && riwayat.length > 0) setMessages(riwayat);
+      if (!batal) setIsFirstLoad(false);
+    });
+    return () => {
+      batal = true;
+    };
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -49,7 +60,9 @@ export default function ChatPage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <ChatHeader />
 
-        {messages.length === 0 ? (
+        {isFirstLoad ? (
+          <div className="flex-1" />
+        ) : messages.length === 0 ? (
           <ChatEmptyState onSelectQuestion={handleSend} />
         ) : (
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
