@@ -1,14 +1,25 @@
-import { Download, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { getAnalytics } from "@/lib/data";
+import { getAnalyticsShape } from "@/lib/supabase";
 import { analitikPage } from "@/lib/content";
 import MetricCard from "@/components/dashboard/analitik/MetricCard";
+import ExportCsvButton from "@/components/dashboard/analitik/ExportCsvButton";
 import ComplaintsTrendChart from "@/components/dashboard/analitik/ComplaintsTrendChart";
 import FuelConsumptionChart from "@/components/dashboard/analitik/FuelConsumptionChart";
 import SpeedingByPlateChart from "@/components/dashboard/analitik/SpeedingByPlateChart";
 import ViolationMapLoader from "@/components/dashboard/analitik/ViolationMapLoader";
 
-export default function AnalitikDashboardPage() {
-  const analytics = getAnalytics();
+// Server: baca Supabase langsung, gagal (env kosong / offline) pakai dummy.
+async function muatAnalitik() {
+  try {
+    return await getAnalyticsShape();
+  } catch {
+    return getAnalytics();
+  }
+}
+
+export default async function AnalitikDashboardPage() {
+  const analytics = await muatAnalitik();
   const { metrics } = analytics;
 
   const metricValues = {
@@ -40,13 +51,11 @@ export default function AnalitikDashboardPage() {
           <p className="mt-1 text-sm text-slate-500">{analitikPage.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            <Download className="h-4 w-4 flex-none" strokeWidth={1.75} />
-            {analitikPage.exportButtonLabel}
-          </button>
+          <ExportCsvButton
+            data={analytics.dailyComplaintsTrend}
+            filename={analitikPage.exportFilename}
+            label={analitikPage.exportButtonLabel}
+          />
           <button
             type="button"
             className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
