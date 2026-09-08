@@ -26,6 +26,7 @@ import {
   Settings,
   Send,
   Bell,
+  CalendarDays,
 } from "lucide-react";
 
 export const iconMap = {
@@ -56,4 +57,5 @@ export const iconMap = {
   settings: Settings,
   send: Send,
   bell: Bell,
+  "calendar-days": CalendarDays,
 };

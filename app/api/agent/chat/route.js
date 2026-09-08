@@ -1,8 +1,29 @@
 import { NextResponse } from "next/server";
 import { catatChat, konteksArmada } from "@/lib/supabase";
 import { getUser } from "@/lib/auth";
+import { muatTemuan } from "@/lib/schedule-findings";
+import { describeFindings } from "@/lib/schedule-analysis";
+import { jadwalPage } from "@/lib/content";
 
 // Riwayat chat dibaca lewat GET /api/chat (app/api/chat/route.js).
+
+// Tool lokal agent: "cek_penyimpangan_jadwal". Pertanyaan soal jadwal/
+// penyimpangan dijawab dari lib/schedule-analysis.js (deterministik, tidak
+// perlu OpenClaw); temuannya juga disertakan sebagai konteks ke OpenClaw.
+const POLA_JADWAL = /\b(jadwal|penyimpangan|deviasi|terlambat|bergerak tanpa)\b/i;
+
+async function jalankanToolJadwal() {
+  try {
+    const { findings, summary } = await muatTemuan();
+    const ringkas = `Hari ini ${summary.total} perjalanan: ${summary.onTime} tepat waktu, ${summary.late} terlambat, ${summary.notDeparted} belum berangkat.`;
+    return {
+      text: `${ringkas}\n\n${jadwalPage.findings.title}:\n${describeFindings(findings)}`,
+      findings,
+    };
+  } catch {
+    return null;
+  }
+}
 
 // POST /api/agent/chat — teruskan pertanyaan ke agent OpenClaw di VPS.
 // Konteks armada (driver + trip berjalan) disertakan supaya jawaban
@@ -26,6 +47,24 @@ export async function POST(req) {
     konteks = await konteksArmada();
   } catch {
     konteks = null;
+  }
+
+  // Pertanyaan soal jadwal dijawab tool lokal supaya hasilnya konsisten
+  // dengan halaman Jadwal, apa pun kondisi OpenClaw.
+  if (POLA_JADWAL.test(pesan)) {
+    const hasil = await jalankanToolJadwal();
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        toolTrace: {
+          label: "Memanggil cek_penyimpangan_jadwal",
+          command: "cek_penyimpangan_jadwal()",
+          result: { total_temuan: hasil.findings.length },
+        },
+      });
+    }
   }
 
   const endpoint = process.env.OPENCLAW_ENDPOINT;
