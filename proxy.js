@@ -14,9 +14,14 @@ export function proxy(request) {
   return NextResponse.redirect(loginUrl);
 }
 
-// /dashboard dan API pengaturan digate; API publik lain (dibaca langsung
-// dari Supabase via anon + RLS), halaman publik, _next/*, dan file
-// di /public tidak kena proxy ini.
+// /dashboard, API pengaturan, dan API riwayat chat digate; API publik lain
+// (dibaca langsung dari Supabase via anon + RLS), halaman publik, _next/*,
+// dan file di /public tidak kena proxy ini.
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/pengaturan/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/api/pengaturan/:path*",
+    "/api/chat/:path*",
+    "/api/analytics/:path*",
+  ],
 };

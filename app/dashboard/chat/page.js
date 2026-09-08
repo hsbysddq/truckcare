@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { getChatHistory } from "@/lib/data";
-import { sendMessageToAgent } from "@/lib/agent";
+import { useEffect, useRef } from "react";
+import { useChat } from "@/context/ChatContext";
 import { chatPage } from "@/lib/content";
 import ChatHeader from "@/components/dashboard/chat/ChatHeader";
 import ChatEmptyState from "@/components/dashboard/chat/ChatEmptyState";
@@ -12,45 +11,59 @@ import ChatInput from "@/components/dashboard/chat/ChatInput";
 import AgentActivityPanel from "@/components/dashboard/chat/AgentActivityPanel";
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState(() => getChatHistory());
-  const [isTyping, setIsTyping] = useState(false);
+  const {
+    messages,
+    isTyping,
+    loading,
+    error,
+    sendMessage,
+    askAboutTruck,
+    reloadHistory,
+    dismissError,
+  } = useChat();
   const bottomRef = useRef(null);
-  const contextSentRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages, isTyping]);
 
-  // Dibuka dari halaman detail truk (?truk=PLAT): langsung tanyakan truk itu.
+  // ?truk=PLAT dari halaman detail truk — tunggu riwayat termuat dulu supaya
+  // pesan baru tidak tertimpa hasil GET.
   useEffect(() => {
-    if (contextSentRef.current) return;
+    if (loading) return;
     const plate = new URLSearchParams(window.location.search).get("truk");
-    if (!plate) return;
-    contextSentRef.current = true;
-    handleSend(chatPage.truckContextQuestion.replace("{plate}", plate));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function handleSend(text) {
-    setMessages((prev) => [
-      ...prev,
-      { id: `user-${Date.now()}`, role: "user", text },
-    ]);
-    setIsTyping(true);
-
-    const agentMessage = await sendMessageToAgent(text);
-
-    setIsTyping(false);
-    setMessages((prev) => [...prev, agentMessage]);
-  }
+    if (plate) askAboutTruck(plate);
+  }, [loading, askAboutTruck]);
 
   return (
     <div className="flex h-full overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div className="flex flex-1 flex-col overflow-hidden">
         <ChatHeader />
 
-        {messages.length === 0 ? (
-          <ChatEmptyState onSelectQuestion={handleSend} />
+        {error && (
+          <div
+            role="alert"
+            className="mx-4 mt-4 flex flex-none items-center justify-between gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 sm:mx-6"
+          >
+            <span>{error.text}</span>
+            <button
+              type="button"
+              onClick={error.kind === "load" ? reloadHistory : dismissError}
+              className="inline-flex min-h-11 flex-none items-center rounded-full px-3 text-sm font-semibold text-red-700 hover:bg-red-100"
+            >
+              {error.kind === "load"
+                ? chatPage.errors.retryLabel
+                : chatPage.errors.dismissLabel}
+            </button>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
+            {chatPage.loadingLabel}
+          </div>
+        ) : messages.length === 0 ? (
+          <ChatEmptyState onSelectQuestion={sendMessage} />
         ) : (
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
             {messages.map((message) => (
@@ -61,7 +74,7 @@ export default function ChatPage() {
           </div>
         )}
 
-        <ChatInput onSend={handleSend} disabled={isTyping} />
+        <ChatInput onSend={sendMessage} disabled={isTyping || loading} />
       </div>
 
       <AgentActivityPanel />
