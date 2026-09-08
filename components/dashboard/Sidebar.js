@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Truck, User, LogOut } from "lucide-react";
-import { siteConfig, dashboardNav, dashboardSidebar } from "@/lib/content";
+import { User, LogOut } from "lucide-react";
+import { dashboardNav, dashboardSidebar } from "@/lib/content";
 import { getCurrentUser } from "@/lib/data";
 import { iconMap } from "@/components/icon-map";
+import Logo from "@/components/Logo";
 
 export default function Sidebar({ open, onClose }) {
   const pathname = usePathname();
@@ -27,15 +28,7 @@ export default function Sidebar({ open, onClose }) {
         }`}
       >
         <div className="flex h-20 flex-none items-center px-6">
-          <Link
-            href="/"
-            className="flex cursor-pointer items-center gap-2 text-lg font-semibold tracking-tight text-accent transition-opacity duration-200 hover:opacity-80"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-white">
-              <Truck className="h-5 w-5" strokeWidth={2} />
-            </span>
-            {siteConfig.name}
-          </Link>
+          <Logo href="/dashboard" size="sidebar" priority />
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-4">

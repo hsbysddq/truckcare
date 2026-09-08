@@ -1,23 +1,15 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { Truck } from "lucide-react";
 import { siteConfig, footer, loginPage } from "@/lib/content";
 import LoginForm from "@/components/LoginForm";
+import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <div className="flex flex-1 items-center justify-center bg-white px-6 py-16">
         <div className="w-full max-w-sm">
-          <Link
-            href="/"
-            className="flex cursor-pointer items-center gap-2 text-lg font-semibold tracking-tight text-accent transition-opacity duration-200 hover:opacity-80"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-white">
-              <Truck className="h-5 w-5" strokeWidth={2} />
-            </span>
-            {siteConfig.name}
-          </Link>
+          <Logo href="/" size="sidebar" priority />
 
           <h1 className="mt-10 text-2xl font-bold tracking-tight text-slate-900">
             {loginPage.heading}

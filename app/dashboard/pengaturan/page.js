@@ -1,5 +1,6 @@
 import { pengaturanPage } from "@/lib/content";
 import AksesBot from "@/components/dashboard/pengaturan/AksesBot";
+import StatusTelegram from "@/components/dashboard/pengaturan/StatusTelegram";
 import StatusOpenClaw from "@/components/dashboard/pengaturan/StatusOpenClaw";
 
 export default function PengaturanPage() {
@@ -16,7 +17,8 @@ export default function PengaturanPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <AksesBot />
-        <div className="h-fit">
+        <div className="space-y-6">
+          <StatusTelegram />
           <StatusOpenClaw />
         </div>
       </div>
