@@ -1,35 +1,65 @@
 import { NextResponse } from "next/server";
-import { catatChat } from "@/lib/supabase";
+import { catatChat, ambilRiwayatChat, konteksArmada } from "@/lib/supabase";
+import { getUser } from "@/lib/auth";
+
+// GET /api/agent/chat — riwayat chat user yang login (dari chat_logs).
+export async function GET() {
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ messages: [] }, { status: 401 });
+  }
+  try {
+    const messages = await ambilRiwayatChat(user.id);
+    return NextResponse.json({ messages });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
 
 // POST /api/agent/chat — teruskan pertanyaan ke agent OpenClaw di VPS.
-// Konsumen: lib/agent.js sendMessageToAgent -> return { role: "agent", text }.
+// Konteks armada (driver + trip berjalan) disertakan supaya jawaban
+// agent bisa menyebut data aktual. Konsumen: lib/agent.js
+// sendMessageToAgent -> return { role: "agent", text }.
 export async function POST(req) {
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ text: "" }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => ({}));
   const pesan = body?.message ?? body?.pesan;
   if (!pesan || typeof pesan !== "string") {
     return NextResponse.json({ text: "" }, { status: 400 });
   }
 
+  // Best-effort: kalau Supabase bermasalah, chat tetap jalan tanpa konteks.
+  let konteks = null;
+  try {
+    konteks = await konteksArmada();
+  } catch {
+    konteks = null;
+  }
+
   const endpoint = process.env.OPENCLAW_ENDPOINT;
-  const resText = await telusurAgent(endpoint, pesan);
+  const resText = await telusurAgent(endpoint, pesan, konteks);
 
   if (resText) {
-    await catatChat(pesan, resText.jawaban, resText.mode ?? "luring");
+    await catatChat(pesan, resText.jawaban, resText.mode ?? "luring", user.id);
     return NextResponse.json({ text: resText.jawaban, mode: resText.mode ?? "luring" });
   }
 
   const luring = "Agent AI belum terhubung (OpenClaw belum dikonfigurasi).";
-  await catatChat(pesan, luring, "luring");
+  await catatChat(pesan, luring, "luring", user.id);
   return NextResponse.json({ text: luring, mode: "luring" });
 }
 
-async function telusurAgent(endpoint, pesan) {
+async function telusurAgent(endpoint, pesan, konteks) {
   if (!endpoint) return null;
   try {
     const res = await fetch(`${endpoint}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pesan }),
+      body: JSON.stringify({ pesan, konteks }),
       signal: AbortSignal.timeout(30000),
       cache: "no-store",
     });
