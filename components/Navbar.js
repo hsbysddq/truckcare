@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { navbar } from "@/lib/content";
 import Logo from "@/components/Logo";
@@ -8,6 +8,7 @@ import Logo from "@/components/Logo";
 export default function Navbar({ forceSolid = false }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const headerRef = useRef(null);
 
   useEffect(() => {
     if (forceSolid) return;
@@ -18,9 +19,12 @@ export default function Navbar({ forceSolid = false }) {
       return undefined;
     }
 
+    // Ambang diambil dari tinggi navbar aktual (token --navbar-height),
+    // bukan angka terpisah.
+    const navHeight = headerRef.current?.offsetHeight ?? 0;
     const observer = new IntersectionObserver(
       ([entry]) => setScrolled(!entry.isIntersecting),
-      { rootMargin: "-96px 0px 0px 0px", threshold: 0 }
+      { rootMargin: `-${navHeight}px 0px 0px 0px`, threshold: 0 }
     );
     observer.observe(heroEl);
     return () => observer.disconnect();
@@ -30,11 +34,12 @@ export default function Navbar({ forceSolid = false }) {
 
   return (
     <header
+      ref={headerRef}
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         isSolid ? "bg-white/95 backdrop-blur-sm shadow-sm" : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto flex h-24 max-w-7xl items-center px-6 lg:px-8">
+      <nav className="mx-auto flex h-(--navbar-height) max-w-7xl items-center px-6 lg:px-8">
         <div className="flex flex-1 justify-start">
           <Logo
             href="/"

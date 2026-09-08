@@ -74,7 +74,7 @@ export default function Hero() {
     <section
       id="hero"
       data-hero
-      className="group relative h-[90vh] min-h-[560px] w-full overflow-hidden bg-slate-950"
+      className="group relative flex min-h-[90vh] w-full flex-col overflow-hidden bg-slate-950"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={handleTouchStart}
@@ -124,7 +124,9 @@ export default function Hero() {
         );
       })}
 
-      <div className="relative z-10 flex h-full items-center px-6 sm:px-10 lg:px-16">
+      {/* Padding atas = tinggi navbar (token) + ruang napas; dipakai padding,
+          bukan margin, supaya titik tengah vertikal ikut bergeser. */}
+      <div className="relative z-10 flex flex-1 items-center px-6 pb-24 pt-[calc(var(--navbar-height)+1rem)] sm:px-10 sm:pb-20 lg:px-16">
         <div className="mx-auto max-w-4xl text-center">
           <span
             key={`label-${activeIndex}`}

@@ -26,9 +26,20 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Satu-satunya sumber tinggi navbar. Dipakai Navbar (tinggi + ambang
+   IntersectionObserver), padding atas Hero, dan scroll-padding-top. */
+:root {
+  --navbar-height: 4rem;
+}
+@media (min-width: 1024px) {
+  :root {
+    --navbar-height: 6rem;
+  }
+}
+
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 88px;
+  scroll-padding-top: var(--navbar-height);
   overflow-x: hidden;
 }
 
