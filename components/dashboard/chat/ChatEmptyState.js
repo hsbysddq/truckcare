@@ -1,24 +1,16 @@
+import { Bot } from "lucide-react";
 import { chatPage } from "@/lib/content";
 
-export default function ChatEmptyState({ onSelectQuestion }) {
+// Tampilan awal saat belum ada percakapan. Pill saran cepat ada di ChatInput,
+// jadi di sini hanya ikon, sapaan, dan satu kalimat petunjuk.
+export default function ChatEmptyState() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-12 text-center">
-      <p className="max-w-sm text-base text-slate-600">{chatPage.greeting}</p>
-      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-slate-400">
-        {chatPage.exampleQuestionsLabel}
-      </p>
-      <div className="mt-3 flex w-full max-w-md flex-col gap-2">
-        {chatPage.quickSuggestions.map((question) => (
-          <button
-            key={question}
-            type="button"
-            onClick={() => onSelectQuestion(question)}
-            className="flex min-h-11 items-center rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent"
-          >
-            {question}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-tint text-accent">
+        <Bot className="h-8 w-8" strokeWidth={1.75} />
+      </span>
+      <p className="mt-5 text-lg font-semibold text-slate-900">{chatPage.greeting}</p>
+      <p className="mt-2 max-w-sm text-sm text-slate-500">{chatPage.emptyHint}</p>
     </div>
   );
 }

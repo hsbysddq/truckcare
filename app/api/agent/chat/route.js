@@ -1,20 +1,8 @@
 import { NextResponse } from "next/server";
-import { catatChat, ambilRiwayatChat, konteksArmada } from "@/lib/supabase";
+import { catatChat, konteksArmada } from "@/lib/supabase";
 import { getUser } from "@/lib/auth";
 
-// GET /api/agent/chat — riwayat chat user yang login (dari chat_logs).
-export async function GET() {
-  const user = await getUser();
-  if (!user) {
-    return NextResponse.json({ messages: [] }, { status: 401 });
-  }
-  try {
-    const messages = await ambilRiwayatChat(user.id);
-    return NextResponse.json({ messages });
-  } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
-}
+// Riwayat chat dibaca lewat GET /api/chat (app/api/chat/route.js).
 
 // POST /api/agent/chat — teruskan pertanyaan ke agent OpenClaw di VPS.
 // Konteks armada (driver + trip berjalan) disertakan supaya jawaban

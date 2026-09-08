@@ -49,11 +49,14 @@ export async function proxy(request) {
   return response;
 }
 
-// Rute yang butuh session Supabase: dashboard, API pengaturan, API analitik.
+// Rute yang butuh session Supabase: dashboard, API pengaturan, API analitik,
+// riwayat chat, dan aktivitas agent.
 export const config = {
   matcher: [
     "/dashboard/:path*",
     "/api/pengaturan/:path*",
     "/api/analytics/:path*",
+    "/api/chat/:path*",
+    "/api/agent-activity/:path*",
   ],
 };
