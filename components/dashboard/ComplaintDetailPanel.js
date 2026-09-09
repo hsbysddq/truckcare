@@ -30,7 +30,7 @@ import {
 import Link from "next/link";
 import { formatTicketId, normalizePlate } from "@/lib/format";
 import { formatDateTime } from "@/lib/schedule-analysis";
-import SpeedEvidenceChart from "@/components/dashboard/SpeedEvidenceChart";
+import SpeedEvidenceChart from "@/components/dashboard/SpeedEvidenceChartLoader";
 
 function fill(template, vars) {
   return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? ""));

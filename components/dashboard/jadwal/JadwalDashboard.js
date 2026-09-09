@@ -45,7 +45,7 @@ export default function JadwalDashboard({ apiBase = "/api/schedules", initialTru
   const [view, setView] = useState("day");
   const [schedules, setSchedules] = useState([]);
   const [findings, setFindings] = useState([]);
-  const [trucks, setTrucks] = useState(() => initialTrucks);
+  const trucks = initialTrucks;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -55,25 +55,24 @@ export default function JadwalDashboard({ apiBase = "/api/schedules", initialTru
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [schedRes, findRes, truckRes] = await Promise.all([
-        fetch(apiBase, { cache: "no-store" }),
+      // Hanya jadwal dalam rentang tampilan (hari/minggu/bulan) yang diminta,
+      // bukan seluruh tabel. Daftar truk sudah dari server (initialTrucks).
+      const { start, end } = rangeFor(view, new Date());
+      const q = new URLSearchParams({ from: start.toISOString(), to: end.toISOString() });
+      const [schedRes, findRes] = await Promise.all([
+        fetch(`${apiBase}?${q}`, { cache: "no-store" }),
         fetch(`${apiBase}/findings`, { cache: "no-store" }),
-        fetch("/api/trucks", { cache: "no-store" }).catch(() => null),
       ]);
       if (!schedRes.ok) throw new Error(String(schedRes.status));
       setSchedules(await schedRes.json());
       if (findRes.ok) setFindings((await findRes.json()).findings ?? []);
-      if (truckRes?.ok) {
-        const data = await truckRes.json();
-        if (Array.isArray(data) && data.length) setTrucks(data);
-      }
       setNow(new Date());
     } catch {
       setError(copy.errorLabel);
     } finally {
       setLoading(false);
     }
-  }, [apiBase, copy.errorLabel]);
+  }, [apiBase, copy.errorLabel, view]);
 
   useEffect(() => {
     load();

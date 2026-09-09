@@ -1,9 +1,10 @@
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { ChatProvider } from "@/context/ChatContext";
-import { getUser } from "@/lib/auth";
+import { getUserDariSesi } from "@/lib/auth";
 
 export default async function DashboardLayout({ children }) {
-  const user = await getUser();
+  // Dari cookie (tanpa roundtrip auth): proxy.js sudah memverifikasi sesi.
+  const user = await getUserDariSesi();
   const tampilanUser = user
     ? {
         name: user.email.split("@")[0],

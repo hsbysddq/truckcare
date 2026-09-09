@@ -4,7 +4,7 @@ import { driverDetailPage, complaintStatusMeta } from "@/lib/content";
 import { formatTicketId } from "@/lib/format";
 import DriverStatusBadge from "@/components/dashboard/pengemudi/DriverStatusBadge";
 import DriverHistory from "@/components/dashboard/pengemudi/DriverHistory";
-import DriverTripsChart from "@/components/dashboard/pengemudi/DriverTripsChart";
+import DriverTripsChart from "@/components/dashboard/pengemudi/DriverTripsChartLoader";
 
 function fill(template, vars) {
   return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? ""));

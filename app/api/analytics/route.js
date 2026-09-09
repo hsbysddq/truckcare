@@ -18,7 +18,7 @@ export async function GET(req) {
   try {
     let source;
     try {
-      source = await getAnalyticsSourceLive();
+      source = await getAnalyticsSourceLive({ rangeDays });
     } catch {
       source = getAnalyticsSource(await getActiveTrucks());
     }

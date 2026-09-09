@@ -7,10 +7,12 @@ import AnalitikFilters from "@/components/dashboard/analitik/AnalitikFilters";
 import MetricCard from "@/components/dashboard/analitik/MetricCard";
 import ChartCard from "@/components/dashboard/analitik/ChartCard";
 import ExportCsvButton from "@/components/dashboard/analitik/ExportCsvButton";
-import ComplaintsTrendChart from "@/components/dashboard/analitik/ComplaintsTrendChart";
-import SpeedingByPlateChart from "@/components/dashboard/analitik/SpeedingByPlateChart";
-import FuelListDetail from "@/components/dashboard/analitik/FuelListDetail";
-import HourDistributionChart from "@/components/dashboard/analitik/HourDistributionChart";
+import {
+  ComplaintsTrendChart,
+  SpeedingByPlateChart,
+  FuelListDetail,
+  HourDistributionChart,
+} from "@/components/dashboard/analitik/AnalitikChartsLoader";
 import ViolationMapLoader from "@/components/dashboard/analitik/ViolationMapLoader";
 
 function fill(template, vars) {
