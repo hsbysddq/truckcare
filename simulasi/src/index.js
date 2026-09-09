@@ -104,10 +104,45 @@ async function initTrips() {
         .update({ driver_id: st.driverId })
         .eq('id', tripAda.id);
       if (errDrv) throw errDrv;
+      // Pastikan jadwal 'berjalan' (bukan cuma trips) tersedia utk Pengemudi/Jadwal.
+      await buatJadwal(st);
     } else {
       await buatTripBaru(st);
     }
   }
+}
+
+// Jaga konsistensi dengan halaman Pengemudi & Jadwal: buat jadwal 'berjalan'
+// setiap trip aktif, ber-driver & bertruk. Hapus jadwal lama truk itu dulu
+// (satu jadwal per truk) supaya tidak melanggar eksklusi overlap schedules.
+async function buatJadwal(st) {
+  const now = new Date();
+  const menitAkhir = st.rute.waypoints.at(-1)?.tiba_menit ?? 60;
+  const arrival = new Date(now.getTime() + Math.max(menitAkhir, 5) * 60000);
+
+  const { error: errDel } = await supabase
+    .from('schedules')
+    .delete()
+    .eq('truck_id', st.trukId);
+  if (errDel) throw errDel;
+
+  const { data, error: errIns } = await supabase
+    .from('schedules')
+    .insert({
+      truck_id: st.trukId,
+      driver_id: st.driverId,
+      origin: st.rute.asal,
+      destination: st.rute.tujuan,
+      planned_departure: now.toISOString(),
+      planned_arrival: arrival.toISOString(),
+      actual_departure: now.toISOString(),
+      status: 'berjalan',
+    })
+    .select('id')
+    .single();
+  if (errIns) throw errIns;
+  st.scheduleId = data.id;
+  return data;
 }
 
 // Selesaikan trip lama dan langsung mulai trip baru supaya simulasi jalan
@@ -137,6 +172,7 @@ async function buatTripBaru(st) {
   if (errTrip) throw errTrip;
   st.tripId = data.id;
   st.menit = 0;
+  await buatJadwal(st);
   return data;
 }
 
