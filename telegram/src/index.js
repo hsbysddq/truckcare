@@ -3,7 +3,7 @@
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import { createClient } from '@supabase/supabase-js';
-import { escapeHtml, formatTabelArmada } from './tabel.js';
+import { formatTabelArmada, formatTabelArmadaHtml } from './tabel.js';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 // Chat ID owner bootstrap: selalu boleh, anti-lockout kalau tabel
@@ -88,15 +88,18 @@ async function statusArmada() {
       status: jalanDariKecepatan(p.kecepatan),
       tujuan: trip?.tujuan ?? '?',
       kec: String(Number(p.kecepatan ?? 0).toFixed(0)),
+      lat: p.lat,
+      lon: p.lon,
     });
   }
   // { html, teks }: kirim html (blok <pre> rapi); kalau parse gagal,
   // fallback teks polos supaya data tetap sampai.
-  const tabel = formatTabelArmada(baris);
+  const tabelHtml = formatTabelArmadaHtml(baris);
+  const tabelTeks = formatTabelArmada(baris);
   return baris.length
     ? {
-        html: `Status armada:\n<pre>${escapeHtml(tabel)}</pre>`,
-        teks: `Status armada:\n${tabel}`,
+        html: `Status armada:\n<pre>${tabelHtml}</pre>`,
+        teks: `Status armada:\n${tabelTeks}`,
       }
     : { html: 'Belum ada data posisi.', teks: 'Belum ada data posisi.' };
 }
