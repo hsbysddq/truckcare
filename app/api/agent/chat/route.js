@@ -120,10 +120,12 @@ function polaKondisiMenunjukSatuTruk(pesan, trukKonteks) {
   if (POLA_ARMADA_KESELURUHAN.test(pesan)) return false;
   const punyaPlat = Boolean(pesan.match(POLA_PLAT)?.[1]);
   if (punyaPlat) return POLA_KONDISI_TRUK.test(pesan);
-  // Tanpa plat di teks: hanya bila konteks truk aktif DAN pertanyaannya
-  // jelas tentang satu truk ("kondisinya", "truk itu", "posisinya").
   if (!trukKonteks) return false;
-  return /truk|kondisinya|posisinya|statusnya|itu/.test(pesan) && POLA_KONDISI_TRUK.test(pesan);
+  // Konteks truk aktif (dari tombol "Tanya AI" di halaman truk): pertanyaan
+  // kondisi/rekap/status tunggal dianggap tentang truk itu, selama tidak
+  // eksplisit meminta seluruh armada.
+  if (/semua|seluruh|armada/.test(pesan)) return false;
+  return POLA_KONDISI_TRUK.test(pesan);
 }
 
 async function jawabanKondisiTruk(pesan, trukKonteks) {
