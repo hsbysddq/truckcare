@@ -3,6 +3,7 @@ import { catatChat, konteksArmada } from "@/lib/supabase";
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
+import { muatPrompt } from "@/lib/agent-config";
 import { jadwalPage } from "@/lib/content";
 
 // Riwayat chat dibaca lewat GET /api/chat (app/api/chat/route.js).
@@ -52,6 +53,9 @@ export async function POST(req) {
   } catch {
     konteks = null;
   }
+  // System prompt admin (edit dari Pengaturan) ikut dikirim ke agent.
+  konteks = konteks ?? { drivers: [], trips: [] };
+  konteks.systemPrompt = await muatPrompt();
 
   // Pertanyaan soal jadwal dijawab tool lokal supaya hasilnya konsisten
   // dengan halaman Jadwal, apa pun kondisi OpenClaw.

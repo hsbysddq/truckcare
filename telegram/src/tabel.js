@@ -6,7 +6,6 @@
 const LEBAR = { truk: 8, plat: 11, status: 8, tujuan: 11, kec: 3, peta: 14 };
 
 export const URL_MAPS = (lat, lon) => `https://www.google.com/maps?q=${lat},${lon}`;
-
 function sel(teks, lebar, rata = "kiri") {
   const t = String(teks ?? "-");
   const potong = t.length > lebar ? t.slice(0, lebar) : t;
@@ -64,4 +63,37 @@ export function formatTabelArmadaHtml(baris) {
     );
   });
   return [k, garis(k), ...isi].join("\n");
+}
+
+// Kolom lebar untuk daftar pengaduan yang menunggu validasi.
+const LEBAR_P = { plat: 12, tanggal: 11, jam: 6, deskripsi: 42 };
+
+// baris: [{ plat, tanggal, jam, deskripsi }] → string tabel polos.
+export function formatTabelPengaduan(baris) {
+  const kepala =
+    `${sel("Plat", LEBAR_P.plat)} ${sel("Tanggal", LEBAR_P.tanggal)} ` +
+    `${sel("Jam", LEBAR_P.jam)} ${sel("Deskripsi", LEBAR_P.deskripsi)}`;
+  const garis = "-".repeat(kepala.length);
+  const isi = (baris ?? []).map(
+    (b) =>
+      `${sel(b.plat, LEBAR_P.plat)} ${sel(b.tanggal, LEBAR_P.tanggal)} ` +
+      `${sel(b.jam ?? "-", LEBAR_P.jam)} ${sel(b.deskripsi ?? "-", LEBAR_P.deskripsi)}`
+  );
+  return [kepala, garis, ...isi].join("\n");
+}
+
+// Versi HTML (dalam <pre>) untuk daftar pengaduan; teks sel di-escape.
+export function formatTabelPengaduanHtml(baris) {
+  const kepala =
+    `${sel("Plat", LEBAR_P.plat)} ${sel("Tanggal", LEBAR_P.tanggal)} ` +
+    `${sel("Jam", LEBAR_P.jam)} ${sel("Deskripsi", LEBAR_P.deskripsi)}`;
+  const garis = "-".repeat(kepala.length);
+  const isi = (baris ?? []).map((b) => {
+    const selE = (v, lb) => escapeHtml(sel(String(v ?? "-"), lb));
+    return (
+      `${selE(b.plat, LEBAR_P.plat)} ${selE(b.tanggal, LEBAR_P.tanggal)} ` +
+      `${selE(b.jam, LEBAR_P.jam)} ${selE(b.deskripsi, LEBAR_P.deskripsi)}`
+    );
+  });
+  return [kepala, garis, ...isi].join("\n");
 }

@@ -42,18 +42,20 @@ export default function Sidebar({
           sempit ? "w-20" : "w-60"
         } ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <div className="flex h-20 flex-none items-center justify-between gap-1 px-4">
-          <Logo
-            href="/dashboard"
-            size="sidebar"
-            className={sempit ? "mx-auto [&>span:last-child]:hidden" : ""}
-          />
+        <div
+          className={`flex h-20 flex-none items-center ${
+            sempit ? "justify-center px-0" : "justify-between gap-1 px-4"
+          }`}
+        >
+          {!sempit && (
+            <Logo href="/dashboard" size="sidebar" />
+          )}
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label={sempit ? "Perluas menu" : "Ciutkan menu"}
             title={sempit ? "Perluas menu" : "Ciutkan menu"}
-            className="hidden h-9 w-9 flex-none items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 lg:flex"
+            className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 lg:flex"
           >
             {sempit ? (
               <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
