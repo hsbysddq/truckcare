@@ -24,7 +24,7 @@ export default function WhySection() {
 
   return (
     <section id="mengapa" className="bg-slate-50 py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-[1600px] px-6 lg:px-8">
         <FadeIn className="mx-auto max-w-7xl text-center">
           <h2 className="whitespace-nowrap text-[clamp(2rem,9vw,6rem)] font-bold tracking-tight text-slate-900">
             {whySection.headline}
