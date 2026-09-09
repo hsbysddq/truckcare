@@ -34,25 +34,34 @@ export default function DashboardPengaduanPage() {
     };
   }, []);
 
+  const adaYangDianalisis = complaints.some(
+    (c) => !c.deletedAt && (c.analysisStatus === "menunggu" || c.analysisStatus === "berjalan")
+  );
+
   useEffect(() => {
     let batal = false;
-    // deleted=all: baris soft-delete ikut dimuat untuk filter "Terhapus".
-    fetch("/api/complaints?deleted=all", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
-        if (!batal && Array.isArray(data)) {
-          setComplaints(data);
-          setSelectedId((sekarang) =>
-            data.some((c) => c.id === sekarang) ? sekarang : (data[0]?.id ?? null)
-          );
-        }
-      })
-      .catch(() => {});
+    const muat = () =>
+      // deleted=all: baris soft-delete ikut dimuat untuk filter "Terhapus".
+      fetch("/api/complaints?deleted=all", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
+          if (!batal && Array.isArray(data)) {
+            setComplaints(data);
+            setSelectedId((sekarang) =>
+              data.some((c) => c.id === sekarang) ? sekarang : (data[0]?.id ?? null)
+            );
+          }
+        })
+        .catch(() => {});
+    muat();
+    // Selama ada laporan yang sedang dianalisis, segarkan tiap 8 detik.
+    const interval = adaYangDianalisis ? setInterval(muat, 8000) : null;
     return () => {
       batal = true;
+      if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [adaYangDianalisis]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

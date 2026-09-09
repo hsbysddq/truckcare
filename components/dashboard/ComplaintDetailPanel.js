@@ -13,12 +13,13 @@ import {
   Lock,
   MoreVertical,
   Pencil,
+  RefreshCw,
   RotateCcw,
   SearchX,
   Send,
   ServerOff,
   Trash2,
-  UserCheck,
+  Users,
   XCircle,
 } from "lucide-react";
 import {
@@ -26,6 +27,7 @@ import {
   agentConfidenceMeta,
   pengaduanManagementPage,
 } from "@/lib/content";
+import Link from "next/link";
 import { formatTicketId, normalizePlate } from "@/lib/format";
 import { formatDateTime } from "@/lib/schedule-analysis";
 import SpeedEvidenceChart from "@/components/dashboard/SpeedEvidenceChart";
@@ -257,6 +259,30 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
     setAlasanHapus("");
   }
 
+  // "Analisis ulang": jalankan lib/complaint-analysis.js lagi di server, lalu
+  // terapkan shape terbaru tanpa reload.
+  async function analisisUlang() {
+    if (!complaint || memproses) return;
+    setMemproses("analisis");
+    setGalat(null);
+    try {
+      const res = await fetch(`/api/complaints/${complaint.id}/analyze`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGalat(data?.error ?? copy.actions.errorMessage);
+        return;
+      }
+      if (data?.complaint) {
+        const { id: _id, ...patch } = data.complaint;
+        onStatusChange?.(complaint.id, patch);
+      }
+    } catch {
+      setGalat(copy.actions.errorMessage);
+    } finally {
+      setMemproses(null);
+    }
+  }
+
   async function pulihkan() {
     const data = await panggil("PATCH", { restore: true }, "pulihkan");
     if (!data) return;
@@ -273,12 +299,19 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
 
   const status = complaintStatusMeta[complaint.status] ?? complaintStatusMeta.pending;
   const source = complaint.decisionSource ?? null;
-  const confidence =
-    source === "agent" && complaint.agentConfidence
-      ? agentConfidenceMeta[complaint.agentConfidence] ?? null
-      : null;
-  const nonAgentBox = source === "operator" || source === "sistem" ? copy.decisionBoxes[source] : null;
-  const findings = complaint.agentFindings ?? [];
+  // Analisis agent (hasil lib/complaint-analysis.js, atau data contoh) tetap
+  // ditampilkan meski operator kemudian mengubah keputusannya.
+  const agentAnalysis =
+    complaint.agentAnalysis ??
+    (complaint.agentReasoning && (source === "agent" || complaint.decidedBy === "agent")
+      ? { reasoning: complaint.agentReasoning, verdict: null, confidence: complaint.agentConfidence ?? null, findings: complaint.agentFindings ?? [] }
+      : null);
+  const agentConfidence = agentAnalysis?.confidence ? agentConfidenceMeta[agentAnalysis.confidence] ?? null : null;
+  const operatorDecided = complaint.decidedBy === "operator";
+  const sistemDecided = complaint.decidedBy === "sistem";
+  const analysisStatus = complaint.analysisStatus ?? (agentAnalysis ? "selesai" : "menunggu");
+  const sedangDianalisis = memproses === "analisis" || analysisStatus === "berjalan" || (analysisStatus === "menunggu" && !agentAnalysis && !complaint.deletedAt && complaint.status === "pending");
+  const analisisGagal = analysisStatus === "gagal";
   const punyaBukti = (complaint.speedSeries?.length ?? 0) > 0;
   const platTerdaftar =
     !fleetPlates || fleetPlates.size === 0
@@ -461,24 +494,9 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
         </div>
       )}
 
-      {nonAgentBox ? (
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-slate-200 text-slate-600">
-              {source === "operator" ? (
-                <UserCheck className="h-4 w-4" strokeWidth={1.75} />
-              ) : (
-                <ServerOff className="h-4 w-4" strokeWidth={1.75} />
-              )}
-            </span>
-            <h3 className="text-sm font-semibold text-slate-900">{nonAgentBox.title}</h3>
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">{nonAgentBox.description}</p>
-          {complaint.agentReasoning && (
-            <p className="mt-2 text-sm italic text-slate-500">&ldquo;{complaint.agentReasoning}&rdquo;</p>
-          )}
-        </div>
-      ) : (
+      {/* Kotak analisis agent: selalu tampil (hasil, sedang dianalisis, gagal,
+          atau belum). Tombol Analisis ulang untuk yang gagal / data baru. */}
+      {!sistemDecided && (
         <div className="mt-6 rounded-2xl border border-accent/30 bg-accent-tint/40 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -486,25 +504,98 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
                 <Bot className="h-4 w-4" strokeWidth={1.75} />
               </span>
               <h3 className="text-sm font-semibold text-slate-900">{copy.agentBox.title}</h3>
+              {agentAnalysis?.verdict && (
+                <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-accent ring-1 ring-accent/30">
+                  {copy.agentBox.verdictLabels[agentAnalysis.verdict] ?? agentAnalysis.verdict}
+                </span>
+              )}
             </div>
-            {confidence && (
-              <span className={`inline-flex flex-none items-center rounded-full px-3 py-1 text-xs font-semibold ${confidence.badgeClass}`}>
-                <GlossaryText text={copy.agentBox.confidenceLabel} />: {confidence.label}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {agentAnalysis && agentConfidence && (
+                <span className={`inline-flex flex-none items-center rounded-full px-3 py-1 text-xs font-semibold ${agentConfidence.badgeClass}`}>
+                  <GlossaryText text={copy.agentBox.confidenceLabel} />: {agentConfidence.label}
+                </span>
+              )}
+              {!terhapus && (
+                <button
+                  type="button"
+                  onClick={analisisUlang}
+                  disabled={memproses !== null}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-accent hover:bg-white disabled:opacity-50"
+                >
+                  {memproses === "analisis" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
+                  )}
+                  {memproses === "analisis" ? copy.agentBox.reanalyzingLabel : copy.agentBox.reanalyzeLabel}
+                </button>
+              )}
+            </div>
           </div>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            {source === "agent" && complaint.agentReasoning ? complaint.agentReasoning : copy.agentBox.pendingReasoning}
-          </p>
-          {source === "agent" && findings.length > 0 && (
+          {sedangDianalisis ? (
+            <p className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+              <Loader2 className="h-4 w-4 animate-spin text-accent" strokeWidth={2} />
+              {copy.agentBox.analyzingLabel}
+            </p>
+          ) : analisisGagal ? (
+            <p className="mt-3 text-sm text-red-700">
+              {copy.agentBox.failedLabel}
+              {complaint.analysisError ? `: ${complaint.analysisError}` : ""}
+            </p>
+          ) : (
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              {agentAnalysis?.reasoning ?? copy.agentBox.pendingReasoning}
+            </p>
+          )}
+          {agentAnalysis?.findings?.length > 0 && !sedangDianalisis && (
             <div className="mt-4 flex flex-wrap gap-2">
-              {findings.map((finding) => (
+              {agentAnalysis.findings.map((finding) => (
                 <span key={finding} className="inline-flex items-center rounded-full border border-accent/30 bg-white px-3 py-1.5 text-xs font-medium text-accent">
                   {finding}
                 </span>
               ))}
             </div>
           )}
+          {agentAnalysis?.analyzedAt && !sedangDianalisis && (
+            <p className="mt-3 text-[11px] text-slate-400">
+              {copy.agentBox.analyzedAtPrefix} {formatDateTime(agentAnalysis.analyzedAt)}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Keputusan manusia: kotak netral berikon orang, tanpa tingkat keyakinan.
+          Bila agent sudah menganalisis, kotak ini tampil DI BAWAH analisis agent. */}
+      {operatorDecided && (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-slate-200 text-slate-600">
+              <Users className="h-4 w-4" strokeWidth={1.75} />
+            </span>
+            <h3 className="text-sm font-semibold text-slate-900">{copy.decisionBoxes.operator.title}</h3>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">{copy.decisionBoxes.operator.description}</p>
+          <p className="mt-1 text-sm text-slate-700">
+            {copy.decisionBoxes.operator.byLabel}{" "}
+            <span className="font-semibold text-slate-900">{complaint.decidedByName ?? copy.history.actors.operator}</span>
+            {complaint.decidedAt ? ` · ${formatDateTime(complaint.decidedAt)}` : ""}
+          </p>
+          {agentAnalysis && (
+            <p className="mt-2 text-xs italic text-slate-500">{copy.decisionBoxes.operator.afterAgentNote}</p>
+          )}
+        </div>
+      )}
+
+      {sistemDecided && (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-slate-200 text-slate-600">
+              <ServerOff className="h-4 w-4" strokeWidth={1.75} />
+            </span>
+            <h3 className="text-sm font-semibold text-slate-900">{copy.decisionBoxes.sistem.title}</h3>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">{copy.decisionBoxes.sistem.description}</p>
         </div>
       )}
 
@@ -546,9 +637,26 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
               <dt className="text-slate-500">{copy.vehicleInfo.typeLabel}</dt>
               <dd className="font-medium text-slate-900">{complaint.vehicleType ?? "-"}</dd>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start justify-between gap-3">
               <dt className="text-slate-500">{copy.vehicleInfo.driverLabel}</dt>
-              <dd className="font-medium text-slate-900">{complaint.driverName ?? "-"}</dd>
+              <dd className="text-right font-medium text-slate-900">
+                {complaint.driverName ? (
+                  complaint.driverId ? (
+                    <Link
+                      href={`/dashboard/pengemudi/${encodeURIComponent(complaint.driverId)}`}
+                      className="underline-offset-2 hover:text-accent hover:underline"
+                    >
+                      {complaint.driverName}
+                    </Link>
+                  ) : (
+                    complaint.driverName
+                  )
+                ) : complaint.driverUncertain ? (
+                  <span className="text-xs font-normal text-amber-700">{copy.vehicleInfo.driverUncertain}</span>
+                ) : (
+                  <span className="text-xs font-normal text-slate-400">{copy.vehicleInfo.notAnalyzed}</span>
+                )}
+              </dd>
             </div>
           </dl>
         </div>

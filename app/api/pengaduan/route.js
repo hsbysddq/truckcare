@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { tulis } from "@/lib/supabase";
+import { analyzeComplaint } from "@/lib/complaint-analysis";
 import { isValidPlate, normalizePlate } from "@/lib/format";
 
 // Verifikasi Turnstile sebelum insert (gating, bukan replace). Host yang
@@ -92,6 +93,17 @@ export async function POST(req) {
       ...(status ? { status } : {}),
     });
     const baris = Array.isArray(rows) ? rows[0] : rows;
+    // Analisis otomatis segera setelah respons dikirim (server-side); daftar
+    // dashboard menampilkan "Sedang dianalisis" sampai selesai.
+    if (baris?.id) {
+      after(async () => {
+        try {
+          await analyzeComplaint(baris.id, { trigger: "otomatis" });
+        } catch {
+          // Status gagal sudah dicatat oleh analyzeComplaint.
+        }
+      });
+    }
     return NextResponse.json({ id: baris?.id ?? null });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

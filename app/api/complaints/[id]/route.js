@@ -87,31 +87,17 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "status wajib: tervalidasi | ditolak" }, { status: 400 });
   }
 
+  // Keputusan lewat tombol ini selalu keputusan MANUSIA (tim internal).
+  // Analisis agent berjalan terpisah (lib/complaint-analysis.js) dan hasilnya
+  // tetap tersimpan di kolom verdict/reasoning/evidence untuk jejak audit.
   const now = new Date().toISOString();
   const update = { decided_at: now };
-  if (status === "valid") {
-    const hasil = await validasiAI(id);
-    if (hasil) {
-      status = hasil.status;
-      if (hasil.alasan) update.alasan = hasil.alasan;
-      update.diputuskan_oleh = "agent";
-      update.decided_by = "agent";
-      update.decided_by_name = null;
-      update.decision_reason = poinAlasan(hasil.findings, hasil.alasan);
-    } else {
-      update.alasan = "Validasi AI tidak tersedia, diterima otomatis.";
-      update.diputuskan_oleh = "sistem";
-      update.decided_by = "sistem";
-      update.decided_by_name = null;
-      update.decision_reason = [update.alasan];
-    }
-  } else {
-    update.alasan = body.alasan ?? "Ditolak manual oleh operator.";
-    update.diputuskan_oleh = "operator";
-    update.decided_by = "operator";
-    update.decided_by_name = namaOperator(user);
-    update.decision_reason = poinAlasan(null, update.alasan);
-  }
+  update.alasan =
+    body.alasan ?? (status === "valid" ? "Divalidasi manual oleh tim internal." : "Ditolak manual oleh tim internal.");
+  update.diputuskan_oleh = "operator";
+  update.decided_by = "operator";
+  update.decided_by_name = namaOperator(user);
+  update.decision_reason = poinAlasan(null, update.alasan);
   update.status = status;
 
   const { error, row } = await patchPengaduan(id, update);
@@ -249,29 +235,5 @@ export async function GET(_req, { params }) {
     return NextResponse.json({ history });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
-  }
-}
-
-// Tanya agent OpenClaw di VPS. Balik { status: "valid"|"ditolak", alasan? }
-// atau null kalau endpoint belum dikonfigurasi / tak terjangkau / gagal.
-async function validasiAI(pengaduanId) {
-  const endpoint = process.env.OPENCLAW_ENDPOINT;
-  if (!endpoint) return null;
-  try {
-    const res = await fetch(`${endpoint}/api/validasi-pengaduan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pengaduan_id: pengaduanId }),
-      signal: AbortSignal.timeout(20000),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return {
-      status: data?.status === "ditolak" ? "ditolak" : "valid",
-      alasan: data?.alasan ?? null,
-    };
-  } catch {
-    return null;
   }
 }

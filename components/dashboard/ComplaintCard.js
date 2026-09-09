@@ -1,4 +1,4 @@
-import { MapPin, Truck } from "lucide-react";
+import { Loader2, MapPin, Truck } from "lucide-react";
 import {
   complaintStatusMeta,
   agentConfidenceMeta,
@@ -12,6 +12,10 @@ export default function ComplaintCard({ complaint, active, onSelect }) {
   // Laporan yang sudah diputuskan tampil lebih tenang supaya yang menunggu
   // lebih menonjol.
   const tenang = complaint.status === "tervalidasi" || complaint.status === "ditolak";
+  const dianalisis =
+    !complaint.deletedAt &&
+    complaint.status === "pending" &&
+    (complaint.analysisStatus === "menunggu" || complaint.analysisStatus === "berjalan");
   // Badge keyakinan hanya bila agent benar-benar menganalisis laporan ini.
   const confidence =
     complaint.decisionSource === "agent" && complaint.agentConfidence
@@ -65,6 +69,11 @@ export default function ComplaintCard({ complaint, active, onSelect }) {
             {complaint.deletedAt ? (
               <span className="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 line-through">
                 {copy.deletedBadgeLabel}
+              </span>
+            ) : dianalisis ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} aria-hidden="true" />
+                {copy.analyzingBadge}
               </span>
             ) : (
               <span
