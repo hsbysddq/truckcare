@@ -22,8 +22,10 @@ export default function ChatInput({ onSend, disabled, truckContext, onClearTruck
   const placeholder = truckContext
     ? fill(chatPage.inputPlaceholderWithTruck, { plate: truckContext })
     : chatPage.inputPlaceholder;
+  // Saat konteks truk aktif, semua saran menyertakan plat truk itu supaya
+  // pertanyaan dikirim spesifik satu truk, bukan rekap seluruh armada.
   const suggestions = truckContext
-    ? [fill(chatPage.truckQuickSuggestion, { plate: truckContext }), ...chatPage.quickSuggestions]
+    ? chatPage.truckQuickSuggestions.map((s) => fill(s, { plate: truckContext }))
     : chatPage.quickSuggestions;
 
   return (
