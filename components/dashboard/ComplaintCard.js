@@ -9,6 +9,9 @@ import { formatTicketId } from "@/lib/format";
 export default function ComplaintCard({ complaint, active, onSelect }) {
   const copy = pengaduanManagementPage;
   const status = complaintStatusMeta[complaint.status] ?? complaintStatusMeta.pending;
+  // Laporan yang sudah diputuskan tampil lebih tenang supaya yang menunggu
+  // lebih menonjol.
+  const tenang = complaint.status === "tervalidasi" || complaint.status === "ditolak";
   // Badge keyakinan hanya bila agent benar-benar menganalisis laporan ini.
   const confidence =
     complaint.decisionSource === "agent" && complaint.agentConfidence
@@ -34,7 +37,7 @@ export default function ComplaintCard({ complaint, active, onSelect }) {
         </span>
       </div>
 
-      <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-slate-900">
+      <h3 className={`mt-2 line-clamp-2 text-sm font-semibold ${tenang ? "text-slate-500" : "text-slate-900"}`}>
         {complaint.judul}
       </h3>
 
@@ -65,7 +68,9 @@ export default function ComplaintCard({ complaint, active, onSelect }) {
               </span>
             ) : (
               <span
-                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${status.badgeClass}`}
+                className={`inline-flex items-center rounded-full font-semibold ${status.badgeClass} ${
+                  tenang ? "px-2 py-0.5 text-[11px] opacity-80" : "px-2.5 py-1 text-xs"
+                }`}
               >
                 {status.label}
               </span>

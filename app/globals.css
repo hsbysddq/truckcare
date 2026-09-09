@@ -54,6 +54,25 @@ body {
   overflow-x: clip;
 }
 
+/* Panel pengaduan: blok keputusan masuk dari atas saat STATE A -> B. */
+@keyframes keputusan-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animasi-keputusan-masuk {
+  animation: keputusan-masuk 200ms ease-out both;
+}
+.animasi-keluar {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
 @keyframes hero-progress {
   from {
     width: 0%;

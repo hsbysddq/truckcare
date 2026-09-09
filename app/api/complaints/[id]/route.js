@@ -24,6 +24,21 @@ function namaOperator(user) {
   return user?.email ?? user?.id ?? "operator";
 }
 
+// 1-3 poin ringkas alasan keputusan: temuan agent bila berbentuk daftar,
+// selain itu kalimat pertama-ketiga dari teks alasan.
+function poinAlasan(findings, alasan) {
+  if (Array.isArray(findings) && findings.length) {
+    return findings.map((f) => String(f).trim()).filter(Boolean).slice(0, 3);
+  }
+  const teks = String(alasan ?? "").trim();
+  if (!teks) return [];
+  return teks
+    .split(/(?<=[.!?])\s+/)
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
 async function patchPengaduan(id, update) {
   if (!SERVICE) {
     return { error: NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY belum diisi di .env.local" }, { status: 500 }) };
@@ -73,17 +88,20 @@ export async function POST(req, { params }) {
       update.diputuskan_oleh = "agent";
       update.decided_by = "agent";
       update.decided_by_name = null;
+      update.decision_reason = poinAlasan(hasil.findings, hasil.alasan);
     } else {
       update.alasan = "Validasi AI tidak tersedia, diterima otomatis.";
       update.diputuskan_oleh = "sistem";
       update.decided_by = "sistem";
       update.decided_by_name = null;
+      update.decision_reason = [update.alasan];
     }
   } else {
     update.alasan = body.alasan ?? "Ditolak manual oleh operator.";
     update.diputuskan_oleh = "operator";
     update.decided_by = "operator";
     update.decided_by_name = namaOperator(user);
+    update.decision_reason = poinAlasan(null, update.alasan);
   }
   update.status = status;
 
@@ -97,6 +115,7 @@ export async function POST(req, { params }) {
     decidedByName: row.decided_by_name,
     decidedAt: row.decided_at,
     agentReasoning: row.alasan ?? null,
+    decisionReasons: Array.isArray(row.decision_reason) ? row.decision_reason : [],
   });
 }
 
@@ -110,9 +129,21 @@ export async function PATCH(req, { params }) {
   if (body.restore === true) {
     update = { deleted_at: null, delete_reason: null };
   } else if (typeof body.operator_note === "string") {
+    const teks = body.operator_note.trim().slice(0, 2000);
+    if (!teks) return NextResponse.json({ error: "catatan kosong" }, { status: 400 });
+    // Catatan ditambahkan ke daftar (timeline), tidak menimpa yang lama.
+    let lama = [];
+    try {
+      const rows = await baca("pengaduan", `?select=operator_notes&id=eq.${encodeURIComponent(id)}`, SERVICE);
+      lama = Array.isArray(rows?.[0]?.operator_notes) ? rows[0].operator_notes : [];
+    } catch {
+      lama = [];
+    }
+    const catatan = { by: namaOperator(user), at: new Date().toISOString(), text: teks };
     update = {
-      operator_note: body.operator_note.trim().slice(0, 2000) || null,
-      operator_note_at: new Date().toISOString(),
+      operator_notes: [...lama, catatan],
+      operator_note: teks,
+      operator_note_at: catatan.at,
     };
   } else {
     return NextResponse.json({ error: "isi operator_note atau restore" }, { status: 400 });
@@ -124,6 +155,7 @@ export async function PATCH(req, { params }) {
     ok: true,
     operatorNote: row.operator_note ?? null,
     operatorNoteAt: row.operator_note_at ?? null,
+    operatorNotes: Array.isArray(row.operator_notes) ? row.operator_notes : [],
     deletedAt: row.deleted_at ?? null,
     deleteReason: row.delete_reason ?? null,
   });
@@ -156,7 +188,7 @@ export async function GET(_req, { params }) {
     const [rows, runs] = await Promise.all([
       baca(
         "pengaduan",
-        `?select=created_at,status,decided_by,decided_by_name,decided_at,operator_note,operator_note_at,deleted_at,delete_reason&id=eq.${encodeURIComponent(id)}`,
+        `?select=created_at,status,decided_by,decided_by_name,decided_at,operator_note,operator_note_at,operator_notes,deleted_at,delete_reason&id=eq.${encodeURIComponent(id)}`,
         SERVICE
       ),
       baca(
@@ -190,7 +222,12 @@ export async function GET(_req, { params }) {
         status: UI_STATUS[r.status] ?? r.status,
       });
     }
-    if (r.operator_note_at) {
+    const notes = Array.isArray(r.operator_notes) ? r.operator_notes : [];
+    if (notes.length) {
+      notes.forEach((n, i) =>
+        history.push({ id: `note-${i}`, at: n.at, actor: "operator", actorName: n.by ?? null, type: "note", note: n.text })
+      );
+    } else if (r.operator_note_at) {
       history.push({ id: "note", at: r.operator_note_at, actor: "operator", type: "note", note: r.operator_note });
     }
     if (r.deleted_at) {

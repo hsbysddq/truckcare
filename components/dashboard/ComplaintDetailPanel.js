@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import GlossaryText from "@/components/dashboard/GlossaryText";
 import {
   Bot,
@@ -11,8 +11,11 @@ import {
   Image as ImageIcon,
   Loader2,
   Lock,
+  MoreVertical,
+  Pencil,
   RotateCcw,
   SearchX,
+  Send,
   ServerOff,
   Trash2,
   UserCheck,
@@ -31,8 +34,10 @@ function fill(template, vars) {
   return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? ""));
 }
 
-// Status yang masih menunggu keputusan operator/agent.
+// Status yang masih menunggu keputusan operator/agent (STATE A).
 const BELUM_DIPUTUSKAN = new Set(["pending", "perlu-ditinjau", "luar-armada"]);
+const DURASI_TRANSISI_MS = 200;
+const KUTIPAN_PANJANG = 180;
 
 function ConfirmDialog({ open, title, description, confirmLabel, cancelLabel, danger, busy, children, onConfirm, onCancel }) {
   useEffect(() => {
@@ -69,17 +74,76 @@ function ConfirmDialog({ open, title, description, confirmLabel, cancelLabel, da
   );
 }
 
+// Menu titik tiga di pojok kanan atas panel.
+function PanelMenu({ items }) {
+  const copy = pengaduanManagementPage.menu;
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (!ref.current?.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  if (items.length === 0) return null;
+  return (
+    <div ref={ref} className="relative flex-none">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={copy.label}
+        className="inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+      >
+        <MoreVertical className="h-5 w-5" strokeWidth={1.75} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-30 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+              className={`flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm ${
+                item.danger ? "text-red-700 hover:bg-red-50" : "text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <item.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetPlates }) {
   const copy = pengaduanManagementPage;
   const [memproses, setMemproses] = useState(null);
   const [tersalin, setTersalin] = useState(false);
   const [galat, setGalat] = useState(null);
-  // Mode ubah keputusan: buka dialog konfirmasi dulu, baru tombol muncul lagi.
   const [konfirmasiUbah, setKonfirmasiUbah] = useState(false);
   const [modeUbah, setModeUbah] = useState(false);
   const [dialogHapus, setDialogHapus] = useState(false);
   const [alasanHapus, setAlasanHapus] = useState("");
-  const [catatan, setCatatan] = useState("");
+  const [catatan, setCatatan] = useState(""); // STATE A: textarea
+  const [catatanBaru, setCatatanBaru] = useState(""); // STATE B: input inline
+  const [formCatatanTerbuka, setFormCatatanTerbuka] = useState(false);
+  const [kutipanPenuh, setKutipanPenuh] = useState(false);
+  const [animasi, setAnimasi] = useState(null); // "keluar" | "masuk" | null
   const [riwayat, setRiwayat] = useState({ items: null, loading: false });
 
   useEffect(() => {
@@ -88,14 +152,17 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
     return () => clearTimeout(timer);
   }, [tersalin]);
 
-  // Ganti laporan: reset mode & muat catatan + riwayat laporan itu.
+  // Ganti laporan: reset mode & muat riwayat laporan itu.
   useEffect(() => {
     setModeUbah(false);
     setKonfirmasiUbah(false);
     setDialogHapus(false);
     setAlasanHapus("");
     setGalat(null);
-    setCatatan(complaint?.operatorNote ?? "");
+    setCatatan("");
+    setCatatanBaru("");
+    setFormCatatanTerbuka(false);
+    setKutipanPenuh(false);
     if (!complaint) return undefined;
     let batal = false;
     setRiwayat({ items: null, loading: true });
@@ -110,7 +177,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
     return () => {
       batal = true;
     };
-  }, [complaint?.id, complaint?.operatorNote]);
+  }, [complaint?.id]);
 
   async function salinId() {
     try {
@@ -145,24 +212,40 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
     }
   }
 
+  // STATE A -> B: formulir memudar keluar, lalu blok keputusan masuk dari atas.
   async function kirimStatus(status) {
     const data = await panggil("POST", { status }, status);
     if (!data) return;
-    onStatusChange?.(complaint.id, {
+    const patch = {
       status: data.status ?? status,
       decisionSource: data.decisionSource ?? "operator",
       decidedBy: data.decidedBy ?? "operator",
       decidedByName: data.decidedByName ?? null,
       decidedAt: data.decidedAt ?? new Date().toISOString(),
       agentReasoning: data.agentReasoning ?? complaint.agentReasoning ?? null,
-    });
+      decisionReasons: Array.isArray(data.decisionReasons) ? data.decisionReasons : complaint.decisionReasons ?? [],
+    };
+    setAnimasi("keluar");
+    await new Promise((r) => setTimeout(r, DURASI_TRANSISI_MS));
+    onStatusChange?.(complaint.id, patch);
     setModeUbah(false);
+    setAnimasi("masuk");
+    setTimeout(() => setAnimasi(null), DURASI_TRANSISI_MS + 50);
   }
 
-  async function simpanCatatan() {
-    const data = await panggil("PATCH", { operator_note: catatan }, "catatan");
+  async function simpanCatatan(teks) {
+    const isi = String(teks ?? "").trim();
+    if (!isi) return;
+    const data = await panggil("PATCH", { operator_note: isi }, "catatan");
     if (!data) return;
-    onStatusChange?.(complaint.id, { operatorNote: data.operatorNote, operatorNoteAt: data.operatorNoteAt });
+    onStatusChange?.(complaint.id, {
+      operatorNotes: data.operatorNotes ?? [...(complaint.operatorNotes ?? []), { by: null, at: new Date().toISOString(), text: isi }],
+      operatorNote: data.operatorNote ?? isi,
+      operatorNoteAt: data.operatorNoteAt ?? new Date().toISOString(),
+    });
+    setCatatan("");
+    setCatatanBaru("");
+    setFormCatatanTerbuka(false);
   }
 
   async function hapus() {
@@ -203,20 +286,127 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
       : fleetPlates.has(normalizePlate(complaint.plateNumber));
   const terhapus = Boolean(complaint.deletedAt);
   const sudahDiputuskan = !BELUM_DIPUTUSKAN.has(complaint.status);
-  const tampilkanTombol = !terhapus && (!sudahDiputuskan || modeUbah);
+  const stateB = sudahDiputuskan && !modeUbah;
   const keputusanValid = complaint.status === "tervalidasi";
   const decisionCopy = copy.decisionSummary;
   const namaPemutus =
     complaint.decidedBy === "agent" || complaint.decidedBy === "sistem"
       ? decisionCopy.actors[complaint.decidedBy]
       : complaint.decidedByName ?? decisionCopy.actors.operator;
-  const catatanBerubah = (catatan ?? "") !== (complaint.operatorNote ?? "");
+  const alasanKeputusan = (complaint.decisionReasons ?? []).slice(0, 3);
+  const catatanList = complaint.operatorNotes ?? [];
+  const kutipanPanjang = (complaint.reporterNote ?? "").length > KUTIPAN_PANJANG;
+
+  const menuItems = [
+    ...(stateB && !terhapus
+      ? [{ label: copy.menu.changeDecision, icon: Pencil, onSelect: () => setKonfirmasiUbah(true) }]
+      : []),
+    ...(!terhapus
+      ? [{ label: copy.menu.delete, icon: Trash2, danger: true, onSelect: () => setDialogHapus(true) }]
+      : []),
+  ];
+
+  const tombolKeputusan = (
+    <div className={`mt-6 ${animasi === "keluar" ? "animasi-keluar" : ""}`}>
+      {modeUbah && <p className="mb-3 text-xs text-slate-500">{copy.actions.changeModeHint}</p>}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          disabled={memproses !== null}
+          onClick={() => kirimStatus("ditolak")}
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+        >
+          {memproses === "ditolak" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
+          {memproses === "ditolak" ? copy.actions.processingLabel : copy.rejectButtonLabel}
+        </button>
+        <button
+          type="button"
+          disabled={memproses !== null}
+          onClick={() => kirimStatus("tervalidasi")}
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-slate-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+        >
+          {memproses === "tervalidasi" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
+          {memproses === "tervalidasi" ? copy.actions.processingLabel : copy.validateButtonLabel}
+        </button>
+        {modeUbah && (
+          <button
+            type="button"
+            onClick={() => setModeUbah(false)}
+            className="inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-semibold text-slate-500 hover:bg-slate-50"
+          >
+            {copy.actions.cancelLabel}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">
+      {/* STATE B: blok keputusan sebagai header panel. */}
+      {stateB && (
+        <div
+          className={`relative rounded-2xl border-l-4 p-5 ${
+            keputusanValid ? "border-emerald-500 bg-emerald-50" : "border-rose-500 bg-rose-50"
+          } ${animasi === "masuk" ? "animasi-keputusan-masuk" : ""}`}
+        >
+          {!terhapus && (
+            <div className="-mr-1 -mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setKonfirmasiUbah(true)}
+                className="min-h-8 text-xs text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+              >
+                {decisionCopy.changeLabel}
+              </button>
+            </div>
+          )}
+          <div className="flex items-start gap-4">
+            <span
+              className={`flex h-12 w-12 flex-none items-center justify-center rounded-full ${
+                keputusanValid ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+              }`}
+            >
+              {keputusanValid ? (
+                <CheckCircle2 className="h-7 w-7" strokeWidth={1.75} />
+              ) : (
+                <XCircle className="h-7 w-7" strokeWidth={1.75} />
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`text-xs font-bold uppercase tracking-[0.2em] ${keputusanValid ? "text-emerald-800" : "text-rose-800"}`}>
+                {copy.decisionHeader.labels[complaint.status] ?? status.label}
+              </p>
+              <p className="mt-1 text-sm text-slate-700">
+                {decisionCopy.byLabel} <span className="font-semibold text-slate-900">{namaPemutus}</span>
+                {" · "}
+                {complaint.decidedAt ? formatDateTime(complaint.decidedAt) : decisionCopy.unknownTime}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 border-t border-black/5 pt-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              {copy.decisionHeader.reasonsTitle}
+            </p>
+            {alasanKeputusan.length === 0 ? (
+              <p className="mt-1 text-sm text-slate-500">{copy.decisionHeader.noReasons}</p>
+            ) : (
+              <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
+                {alasanKeputusan.map((r) => (
+                  <li key={r} className="flex gap-2">
+                    <span className={`mt-2 h-1.5 w-1.5 flex-none rounded-full ${keputusanValid ? "bg-emerald-500" : "bg-rose-500"}`} aria-hidden="true" />
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className={`flex items-start justify-between gap-2 ${stateB ? "mt-5" : ""}`}>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="min-w-0 text-lg font-bold tracking-tight text-slate-900">
             {copy.ticketLabel}{" "}
             <span className="font-mono">{formatTicketId(complaint.id)}</span>
           </h2>
@@ -239,11 +429,14 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
             </span>
           )}
         </div>
-        <span
-          className={`inline-flex flex-none items-center rounded-full px-3 py-1 text-xs font-semibold ${status.badgeClass}`}
-        >
-          {status.label}
-        </span>
+        <div className="flex flex-none items-center gap-1">
+          {!stateB && (
+            <span className={`inline-flex flex-none items-center rounded-full px-3 py-1 text-xs font-semibold ${status.badgeClass}`}>
+              {status.label}
+            </span>
+          )}
+          <PanelMenu items={menuItems} />
+        </div>
       </div>
       <p className="mt-1 text-sm text-slate-500">
         {copy.reporterRowLabel}: {copy.defaultReporterLabel} · {complaint.incidentAt}
@@ -280,13 +473,9 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
             </span>
             <h3 className="text-sm font-semibold text-slate-900">{nonAgentBox.title}</h3>
           </div>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            {nonAgentBox.description}
-          </p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">{nonAgentBox.description}</p>
           {complaint.agentReasoning && (
-            <p className="mt-2 text-sm italic text-slate-500">
-              &ldquo;{complaint.agentReasoning}&rdquo;
-            </p>
+            <p className="mt-2 text-sm italic text-slate-500">&ldquo;{complaint.agentReasoning}&rdquo;</p>
           )}
         </div>
       ) : (
@@ -296,30 +485,21 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
               <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-accent text-white">
                 <Bot className="h-4 w-4" strokeWidth={1.75} />
               </span>
-              <h3 className="text-sm font-semibold text-slate-900">
-                {copy.agentBox.title}
-              </h3>
+              <h3 className="text-sm font-semibold text-slate-900">{copy.agentBox.title}</h3>
             </div>
             {confidence && (
-              <span
-                className={`inline-flex flex-none items-center rounded-full px-3 py-1 text-xs font-semibold ${confidence.badgeClass}`}
-              >
+              <span className={`inline-flex flex-none items-center rounded-full px-3 py-1 text-xs font-semibold ${confidence.badgeClass}`}>
                 <GlossaryText text={copy.agentBox.confidenceLabel} />: {confidence.label}
               </span>
             )}
           </div>
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            {source === "agent" && complaint.agentReasoning
-              ? complaint.agentReasoning
-              : copy.agentBox.pendingReasoning}
+            {source === "agent" && complaint.agentReasoning ? complaint.agentReasoning : copy.agentBox.pendingReasoning}
           </p>
           {source === "agent" && findings.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {findings.map((finding) => (
-                <span
-                  key={finding}
-                  className="inline-flex items-center rounded-full border border-accent/30 bg-white px-3 py-1.5 text-xs font-medium text-accent"
-                >
+                <span key={finding} className="inline-flex items-center rounded-full border border-accent/30 bg-white px-3 py-1.5 text-xs font-medium text-accent">
                   {finding}
                 </span>
               ))}
@@ -329,9 +509,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
       )}
 
       <div className="mt-6">
-        <h3 className="text-sm font-semibold text-slate-900">
-          {copy.chart.title}
-        </h3>
+        <h3 className="text-sm font-semibold text-slate-900">{copy.chart.title}</h3>
         <p className="mt-1 text-xs text-slate-500">{copy.chart.subtitle}</p>
         <div className="mt-4">
           {punyaBukti ? (
@@ -358,9 +536,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
 
       <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            {copy.vehicleInfo.title}
-          </h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{copy.vehicleInfo.title}</h4>
           <dl className="mt-3 space-y-2 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{copy.vehicleInfo.plateLabel}</dt>
@@ -376,7 +552,6 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
             </div>
           </dl>
         </div>
-
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             <GlossaryText text={copy.telemetryInfo.title} />
@@ -403,34 +578,17 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
       </div>
 
       <div className="mt-6">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          {copy.attachmentsTitle}
-        </h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{copy.attachmentsTitle}</h4>
         <div className="mt-3">
           {complaint.foto_url ? (
-            <div className="grid grid-cols-1 gap-3">
-              <a
-                href={complaint.foto_url}
-                target="_blank"
-                rel="noreferrer"
-                className="block overflow-hidden rounded-xl border border-slate-200"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={complaint.foto_url}
-                  alt="Lampiran laporan"
-                  className="h-auto w-full object-contain"
-                  loading="lazy"
-                />
-              </a>
-            </div>
+            <a href={complaint.foto_url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={complaint.foto_url} alt="Lampiran laporan" className="h-auto w-full object-contain" loading="lazy" />
+            </a>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {[1, 2].map((n) => (
-                <div
-                  key={n}
-                  className="flex aspect-video items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-300"
-                >
+                <div key={n} className="flex aspect-video items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-300">
                   <ImageIcon className="h-6 w-6" strokeWidth={1.5} />
                 </div>
               ))}
@@ -439,52 +597,149 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
         </div>
       </div>
 
-      {/* Laporan asli: teks statis, tidak pernah bisa diedit dari dashboard. */}
-      <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            {copy.reporterNoteTitle}
-          </h4>
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+      {/* Laporan asli: STATE A kotak abu-abu, STATE B kutipan ringkas. Tidak pernah bisa diedit. */}
+      {stateB ? (
+        <div className="mt-6">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             <Lock className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
-            {copy.originalReportLabel}
-          </span>
-        </div>
-        <p className="mt-2 text-sm italic leading-relaxed text-slate-600">
-          &ldquo;{complaint.reporterNote}&rdquo;
-        </p>
-      </div>
-
-      {/* Catatan internal operator: satu-satunya teks yang boleh diedit. */}
-      <div className="mt-6">
-        <label htmlFor="catatan-operator" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          {copy.operatorNote.title}
-        </label>
-        <p className="mt-1 text-xs text-slate-500">{copy.operatorNote.hint}</p>
-        <textarea
-          id="catatan-operator"
-          rows={3}
-          value={catatan}
-          onChange={(e) => setCatatan(e.target.value)}
-          placeholder={copy.operatorNote.placeholder}
-          disabled={terhapus}
-          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint disabled:bg-slate-50"
-        />
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs text-slate-400">
-            {complaint.operatorNoteAt ? `${copy.operatorNote.updatedPrefix} ${formatDateTime(complaint.operatorNoteAt)}` : ""}
-          </span>
-          <button
-            type="button"
-            onClick={simpanCatatan}
-            disabled={!catatanBerubah || memproses !== null || terhapus}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            {copy.originalReport.label}
+          </p>
+          <blockquote
+            className={`mt-1.5 border-l-2 border-slate-200 pl-3 text-sm italic leading-relaxed text-slate-600 ${
+              kutipanPenuh ? "" : "line-clamp-3"
+            }`}
           >
-            {memproses === "catatan" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
-            {copy.operatorNote.saveLabel}
-          </button>
+            &ldquo;{complaint.reporterNote}&rdquo;
+          </blockquote>
+          {kutipanPanjang && (
+            <button
+              type="button"
+              onClick={() => setKutipanPenuh((v) => !v)}
+              className="mt-1 text-xs font-semibold text-accent hover:underline"
+            >
+              {kutipanPenuh ? copy.originalReport.lessLabel : copy.originalReport.moreLabel}
+            </button>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className="mt-6 rounded-2xl bg-slate-50 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{copy.reporterNoteTitle}</h4>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+              <Lock className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+              {copy.originalReportLabel}
+            </span>
+          </div>
+          <p className="mt-2 text-sm italic leading-relaxed text-slate-600">&ldquo;{complaint.reporterNote}&rdquo;</p>
+        </div>
+      )}
+
+      {/* Catatan internal: STATE A formulir, STATE B timeline + input inline. */}
+      {stateB ? (
+        <div className="mt-6">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{copy.notesTimeline.title}</h4>
+          {catatanList.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">{copy.notesTimeline.empty}</p>
+          ) : (
+            <ol className="mt-3 space-y-3 border-l border-slate-200 pl-4">
+              {catatanList.map((n, i) => (
+                <li key={`${n.at ?? i}-${i}`} className="relative">
+                  <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-slate-400" aria-hidden="true" />
+                  <p className="text-xs text-slate-400">
+                    <span className="font-semibold text-slate-600">{n.by ?? copy.notesTimeline.anonymousLabel}</span>
+                    {n.at ? ` · ${formatDateTime(n.at)}` : ""}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-800">{n.text}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+          {!terhapus && (
+            formCatatanTerbuka ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  simpanCatatan(catatanBaru);
+                }}
+                className="mt-3 flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  autoFocus
+                  value={catatanBaru}
+                  onChange={(e) => setCatatanBaru(e.target.value)}
+                  placeholder={copy.notesTimeline.placeholder}
+                  maxLength={500}
+                  className="min-h-11 min-w-0 flex-1 rounded-full border border-slate-200 px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint"
+                />
+                <button
+                  type="submit"
+                  disabled={!catatanBaru.trim() || memproses !== null}
+                  aria-label={copy.notesTimeline.sendLabel}
+                  className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {memproses === "catatan" ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} /> : <Send className="h-4 w-4" strokeWidth={1.75} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormCatatanTerbuka(false);
+                    setCatatanBaru("");
+                  }}
+                  className="min-h-11 flex-none px-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
+                >
+                  {copy.notesTimeline.cancelLabel}
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setFormCatatanTerbuka(true)}
+                className="mt-3 inline-flex min-h-11 items-center text-xs font-semibold text-accent hover:underline"
+              >
+                {copy.notesTimeline.addLabel}
+              </button>
+            )
+          )}
+        </div>
+      ) : (
+        <div className={`mt-6 ${animasi === "keluar" ? "animasi-keluar" : ""}`}>
+          <label htmlFor="catatan-operator" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            {copy.operatorNote.title}
+          </label>
+          <p className="mt-1 text-xs text-slate-500">{copy.operatorNote.hint}</p>
+          {catatanList.length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-slate-500">
+              {catatanList.map((n, i) => (
+                <li key={`${n.at ?? i}-${i}`}>
+                  <span className="font-semibold text-slate-600">{n.by ?? copy.notesTimeline.anonymousLabel}</span>
+                  {n.at ? ` · ${formatDateTime(n.at)}` : ""}: {n.text}
+                </li>
+              ))}
+            </ul>
+          )}
+          <textarea
+            id="catatan-operator"
+            rows={3}
+            value={catatan}
+            onChange={(e) => setCatatan(e.target.value)}
+            placeholder={copy.operatorNote.placeholder}
+            disabled={terhapus}
+            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint disabled:bg-slate-50"
+          />
+          <div className="mt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() => simpanCatatan(catatan)}
+              disabled={!catatan.trim() || memproses !== null || terhapus}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {memproses === "catatan" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
+              {copy.operatorNote.saveLabel}
+            </button>
+          </div>
+        </div>
+      )}
 
       {galat && (
         <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -492,97 +747,8 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
         </p>
       )}
 
-      {/* Area keputusan: tombol aksi hanya saat belum diputuskan (atau mode ubah). */}
-      {tampilkanTombol ? (
-        <div className="mt-6">
-          {modeUbah && (
-            <p className="mb-3 text-xs text-slate-500">{copy.actions.changeModeHint}</p>
-          )}
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              disabled={memproses !== null}
-              onClick={() => kirimStatus("ditolak")}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-            >
-              {memproses === "ditolak" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
-              {memproses === "ditolak" ? copy.actions.processingLabel : copy.rejectButtonLabel}
-            </button>
-            <button
-              type="button"
-              disabled={memproses !== null}
-              onClick={() => kirimStatus("tervalidasi")}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-slate-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
-            >
-              {memproses === "tervalidasi" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
-              {memproses === "tervalidasi" ? copy.actions.processingLabel : copy.validateButtonLabel}
-            </button>
-            {modeUbah && (
-              <button
-                type="button"
-                onClick={() => setModeUbah(false)}
-                className="inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-semibold text-slate-500 hover:bg-slate-50"
-              >
-                {copy.actions.cancelLabel}
-              </button>
-            )}
-          </div>
-        </div>
-      ) : sudahDiputuskan ? (
-        <div
-          className={`mt-6 rounded-2xl border p-5 ${
-            keputusanValid ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <span
-              className={`flex h-10 w-10 flex-none items-center justify-center rounded-full ${
-                keputusanValid ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
-              }`}
-            >
-              {keputusanValid ? (
-                <CheckCircle2 className="h-5 w-5" strokeWidth={1.75} />
-              ) : (
-                <XCircle className="h-5 w-5" strokeWidth={1.75} />
-              )}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className={`text-sm font-bold ${keputusanValid ? "text-emerald-800" : "text-rose-800"}`}>
-                {status.label}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">
-                {decisionCopy.byLabel} <span className="font-medium text-slate-900">{namaPemutus}</span>
-                {" · "}
-                {complaint.decidedAt ? formatDateTime(complaint.decidedAt) : decisionCopy.unknownTime}
-              </p>
-            </div>
-            {!terhapus && (
-              <button
-                type="button"
-                onClick={() => setKonfirmasiUbah(true)}
-                className="inline-flex min-h-11 flex-none items-center rounded-full px-3 text-xs font-semibold text-slate-600 underline-offset-2 hover:underline"
-              >
-                {decisionCopy.changeLabel}
-              </button>
-            )}
-          </div>
-        </div>
-      ) : null}
+      {!stateB && !terhapus && tombolKeputusan}
 
-      {!terhapus && (
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setDialogHapus(true)}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-slate-500 hover:bg-red-50 hover:text-red-700"
-          >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            {copy.deletion.deleteLabel}
-          </button>
-        </div>
-      )}
-
-      {/* Riwayat perubahan: agent_runs + kolom decided_by/decided_at, operator_note_at, deleted_at. */}
       <div className="mt-6 border-t border-slate-100 pt-5">
         <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
           <History className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
@@ -599,9 +765,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
                 <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-accent" />
                 <p className="text-xs text-slate-400">{formatDateTime(h.at)}</p>
                 <p className="text-slate-800">
-                  <span className="font-semibold">
-                    {h.actorName ?? copy.history.actors[h.actor] ?? h.actor}
-                  </span>{" "}
+                  <span className="font-semibold">{h.actorName ?? copy.history.actors[h.actor] ?? h.actor}</span>{" "}
                   {h.type === "decided"
                     ? fill(copy.history.events.decided, { status: complaintStatusMeta[h.status]?.label ?? h.status })
                     : h.type === "agent_run"
