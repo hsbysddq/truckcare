@@ -1,5 +1,6 @@
 "use client";
 
+import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
 import { pengaduanPublikPage } from "@/lib/content";
