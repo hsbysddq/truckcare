@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { Bot, Megaphone } from "lucide-react";
 import { howItWorksSection } from "@/lib/content";
 import FadeIn from "@/components/FadeIn";
 
 // Panggung pin: section dibuat tinggi dan gelap, kolom kiri (judul +
 // diagram) menempel setinggi viewport sementara step teks berjalan di
-// kanan. Step yang sudah melewati tengah layar menyala, sisanya meredup;
-// segmen garis yang dilewati ikut terisi. Setelah step terakhir lewat,
-// scroll kembali normal. Mobile tetap susun vertikal biasa.
+// kanan. Metafora perjalanan: rumah sebagai titik awal, truk berjalan
+// di garis melewati titik-titik step sampai akhir. Step yang sudah
+// melewati tengah layar menyala, sisanya meredup. Setelah step terakhir
+// lewat, scroll kembali normal. Mobile tetap susun vertikal biasa.
 export default function HowItWorksSection() {
   const [activeStep, setActiveStep] = useState(0);
   // Tulang garis: diukur dari tengah lingkaran pertama ke terakhir,
@@ -94,7 +96,7 @@ export default function HowItWorksSection() {
         </div>
 
         <ol ref={listRef} className="relative">
-          {/* Tulang garis utuh dari lingkaran pertama ke terakhir. */}
+          {/* Tulang garis utuh dari titik pertama ke terakhir. */}
           <span
             aria-hidden="true"
             className="absolute left-[21px] w-px bg-white/15"
@@ -105,6 +107,26 @@ export default function HowItWorksSection() {
             className="absolute left-[21px] w-px bg-cta"
             style={{ top: spine.top, height: spine.fill }}
           />
+          {/* Laporan warga: titik awal perjalanan. */}
+          <span
+            aria-hidden="true"
+            className="absolute left-[21px] z-10 flex h-9 w-9 items-center justify-center rounded-full bg-slate-950"
+            style={{ top: spine.top, transform: "translate(-50%, -50%)" }}
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/20">
+              <Megaphone className="h-4 w-4" strokeWidth={1.75} />
+            </span>
+          </span>
+          {/* AI Agent: berjalan di garis mengikuti scroll, sembunyi di titik awal. */}
+          <span
+            aria-hidden="true"
+            className={`absolute left-[21px] z-10 flex h-9 w-9 items-center justify-center rounded-full bg-cta text-white shadow-lg shadow-cta/40 ring-2 ring-white/30 transition-opacity duration-300 ${
+              spine.fill <= 4 ? "opacity-0" : "opacity-100"
+            }`}
+            style={{ top: spine.top + spine.fill, transform: "translate(-50%, -50%)" }}
+          >
+            <Bot className="h-4 w-4" strokeWidth={2} />
+          </span>
           {steps.map((step, index) => {
             const aktif = index === activeStep;
             return (
@@ -115,18 +137,16 @@ export default function HowItWorksSection() {
                 }}
                 className="relative flex items-center gap-5 pb-10 lg:min-h-[75vh] lg:pb-0"
               >
-                {/* Lapisan luar menutup garis dengan warna section agar
-                    garis tidak tembus di balik lingkaran tembus pandang. */}
-                <span className="relative flex h-11 w-11 flex-none items-center justify-center rounded-full bg-slate-950">
+                {/* Titik step: menyala oranye setelah dilewati. */}
+                <span className="flex w-11 flex-none self-stretch items-center justify-center">
                   <span
-                    className={`flex h-11 w-11 items-center justify-center rounded-full text-base font-bold ring-1 transition-colors duration-500 ${
-                      aktif
-                        ? "bg-cta text-white ring-cta"
-                        : "bg-white/10 text-white ring-white/15"
+                    aria-hidden="true"
+                    className={`h-3.5 w-3.5 rounded-full transition-colors duration-500 ${
+                      index <= activeStep
+                        ? "bg-cta"
+                        : "bg-white/25 ring-1 ring-white/20"
                     }`}
-                  >
-                    {step.number}
-                  </span>
+                  />
                 </span>
                 <div>
                   <h3
