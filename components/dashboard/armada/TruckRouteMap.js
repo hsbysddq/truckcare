@@ -21,12 +21,19 @@ function FitRoute({ points }) {
   const map = useMap();
   const key = points.map((p) => p.join(",")).join("|");
   useEffect(() => {
-    if (points.length === 0) return;
-    if (points.length === 1) {
-      map.setView(points[0], 13);
-      return;
-    }
-    map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
+    if (points.length === 0) return undefined;
+    // Tunggu container siap; skip bila luasan 0 (tab/modal tersembunyi).
+    const el = map.getContainer();
+    if (!el || el.clientWidth === 0 || el.clientHeight === 0) return undefined;
+    const raf = requestAnimationFrame(() => {
+      map.invalidateSize();
+      if (points.length === 1) {
+        map.setView(points[0], 13);
+        return;
+      }
+      map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
+    });
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, key]);
   return null;
