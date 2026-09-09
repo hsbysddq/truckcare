@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Clock, Route, Search, Truck } from "lucide-react";
+import { CalendarPlus, Clock, Route, Search, Truck } from "lucide-react";
 import { pengemudiPage, driverStatusMeta } from "@/lib/content";
 import DriverStatusBadge from "@/components/dashboard/pengemudi/DriverStatusBadge";
 
@@ -87,10 +87,26 @@ export default function DriverList({ rows, summary, scheduleCount }) {
         </div>
       </div>
 
-      {tanpaJadwal ? (
+      {/* Jadwal kosong: banner saja, daftar pengemudi tetap dirender. */}
+      {tanpaJadwal && rows.length > 0 && (
+        <div
+          role="status"
+          className="mt-6 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{copy.noSchedule.message}</span>
+          <Link
+            href={copy.noSchedule.href}
+            className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-100 sm:min-h-9"
+          >
+            <CalendarPlus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+            {copy.noSchedule.linkLabel}
+          </Link>
+        </div>
+      )}
+
+      {rows.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
-          <p className="text-sm font-semibold text-slate-700">{copy.noSchedule.title}</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{copy.noSchedule.hint}</p>
+          <p className="text-sm font-semibold text-slate-700">{copy.noDrivers}</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">

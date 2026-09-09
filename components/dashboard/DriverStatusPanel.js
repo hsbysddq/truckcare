@@ -43,7 +43,7 @@ export default function DriverStatusPanel({ data, loading, error, selectedTruckI
         </Link>
       </div>
 
-      {summary && !noSchedules && (
+      {summary && (
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {Object.entries(driverStatusMeta).map(([key, meta]) => (
             <div key={key} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
@@ -57,6 +57,13 @@ export default function DriverStatusPanel({ data, loading, error, selectedTruckI
         </dl>
       )}
 
+      {/* Jadwal kosong: daftar tetap tampil (semua tidak aktif) + catatan. */}
+      {noSchedules && rows.length > 0 && (
+        <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          {copy.noScheduleMessage}
+        </p>
+      )}
+
       <div className="mt-4">
         {loading ? (
           <div className="space-y-2" aria-hidden="true">
@@ -67,10 +74,6 @@ export default function DriverStatusPanel({ data, loading, error, selectedTruckI
         ) : error ? (
           <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
             {copy.errorMessage}
-          </p>
-        ) : noSchedules ? (
-          <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-            {copy.noScheduleMessage}
           </p>
         ) : top.length === 0 ? (
           <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
