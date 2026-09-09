@@ -7,6 +7,7 @@ import { overviewPage } from "@/lib/content";
 import { iconMap } from "@/components/icon-map";
 import TruckDetailPanel from "@/components/dashboard/TruckDetailPanel";
 import TruckSelect from "@/components/dashboard/TruckSelect";
+import DriverStatusPanel from "@/components/dashboard/DriverStatusPanel";
 
 const TruckMap = dynamic(() => import("@/components/dashboard/TruckMap"), {
   ssr: false,
@@ -17,9 +18,12 @@ const TruckMap = dynamic(() => import("@/components/dashboard/TruckMap"), {
   ),
 });
 
-export default function DashboardOverviewPage() {
+export default function DashboardOverviewPage({ driversApi = "/api/drivers" }) {
   // Dummy dulu biar langsung tampil, timpa dengan data live kalau API balas.
   const [trucks, setTrucks] = useState(() => getTrucks());
+  // Status pengemudi dihitung server (lib/driver-status.js); dimuat sekali
+  // lalu disegarkan tiap 30 detik.
+  const [drivers, setDrivers] = useState({ data: null, loading: true, error: false });
   // Mulai tanpa pilihan supaya peta menampilkan seluruh armada dulu.
   const [selectedTruckId, setSelectedTruckId] = useState(null);
 
@@ -44,6 +48,26 @@ export default function DashboardOverviewPage() {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    let batal = false;
+    async function muat() {
+      try {
+        const res = await fetch(driversApi, { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.json();
+        if (!batal) setDrivers({ data, loading: false, error: false });
+      } catch {
+        if (!batal) setDrivers((d) => ({ data: d.data, loading: false, error: !d.data }));
+      }
+    }
+    muat();
+    const interval = setInterval(muat, 30000);
+    return () => {
+      batal = true;
+      clearInterval(interval);
+    };
+  }, [driversApi]);
 
   const selectedTruck = useMemo(
     () => trucks.find((truck) => truck.id === selectedTruckId) ?? null,
@@ -135,6 +159,13 @@ export default function DashboardOverviewPage() {
 
         <TruckDetailPanel truck={selectedTruck} history={history} />
       </div>
+
+      <DriverStatusPanel
+        data={drivers.data}
+        loading={drivers.loading}
+        error={drivers.error}
+        selectedTruckId={selectedTruckId}
+      />
     </div>
   );
 }
