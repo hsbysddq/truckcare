@@ -1,15 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
 import { pengaduanPublikPage } from "@/lib/content";
-import { isValidPlate, normalizePlate } from "@/lib/format";
+import { formatPlateInput, isValidPlate, normalizePlate } from "@/lib/format";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const MAKS_FOTO_BYTES = 2 * 1024 * 1024;
 const MIN_DESKRIPSI = 20;
 const BUCKET = "foto-pengaduan";
+const JEDA_CEK_PLAT_MS = 600;
+// Status DB untuk laporan yang platnya tidak terdaftar (lihat
+// supabase/pengaduan-luar-armada.sql). Tidak memblokir pengiriman.
+const STATUS_LUAR_ARMADA = "luar_armada";
+
+// Tanya server apakah plat terdaftar. Jawaban hanya { found } tanpa detail.
+// null = tidak diketahui (jaringan/rate limit), jangan dianggap "tidak ada".
+async function cekPlatKeServer(plat, signal) {
+  try {
+    const res = await fetch("/api/check-plate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plate: plat }),
+      signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.found === "boolean" ? data.found : null;
+  } catch {
+    return null;
+  }
+}
 
 function tanggalHariIni() {
   const sekarang = new Date();
@@ -31,14 +53,46 @@ export default function PengaduanForm() {
   const [memproses, setMemproses] = useState(false);
   const [pesanGalat, setPesanGalat] = useState(null);
   const [terkirim, setTerkirim] = useState(null);
+  // idle | invalid | checking | found | notFound | unknown
+  const [cekPlat, setCekPlat] = useState("idle");
 
   function ubah(bidang) {
     return (event) => {
-      const nilaiBaru = { ...nilai, [bidang]: event.target.value };
+      const mentah = event.target.value;
+      const nilaiBaru = {
+        ...nilai,
+        [bidang]: bidang === "plat" ? formatPlateInput(mentah) : mentah,
+      };
       setNilai(nilaiBaru);
       if (galat[bidang]) setGalat((g) => ({ ...g, [bidang]: null }));
     };
   }
+
+  // Cek plat ke server setelah pengguna berhenti mengetik (debounce), bukan
+  // tiap ketikan. Format salah ditandai tanpa memanggil server.
+  useEffect(() => {
+    const plat = nilai.plat;
+    if (!plat) {
+      setCekPlat("idle");
+      return undefined;
+    }
+    if (!isValidPlate(plat)) {
+      setCekPlat("idle");
+      const t = setTimeout(() => setCekPlat("invalid"), JEDA_CEK_PLAT_MS);
+      return () => clearTimeout(t);
+    }
+    const controller = new AbortController();
+    const t = setTimeout(async () => {
+      setCekPlat("checking");
+      const found = await cekPlatKeServer(normalizePlate(plat), controller.signal);
+      if (controller.signal.aborted) return;
+      setCekPlat(found === null ? "unknown" : found ? "found" : "notFound");
+    }, JEDA_CEK_PLAT_MS);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [nilai.plat]);
 
   function validasi() {
     const baru = {};
@@ -73,7 +127,7 @@ export default function PengaduanForm() {
     return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${jalur}`;
   }
 
-  async function simpan(plat, tanggal, jam, deskripsi, fotoUrl) {
+  async function simpan(plat, tanggal, jam, deskripsi, fotoUrl, status) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/pengaduan`, {
       method: "POST",
       headers: {
@@ -88,6 +142,7 @@ export default function PengaduanForm() {
         jam: jam || null,
         deskripsi: deskripsi.trim(),
         foto_url: fotoUrl || null,
+        ...(status ? { status } : {}),
       }),
     });
     if (!res.ok) throw new Error("insert gagal");
@@ -116,15 +171,24 @@ export default function PengaduanForm() {
       }
     }
 
+    // Hasil cek terakhir dipakai; bila belum ada hasil pasti, cek sekali lagi
+    // saat kirim. Tidak diketahui -> status default, biar agent yang memutuskan.
+    let terdaftar = cekPlat === "found" ? true : cekPlat === "notFound" ? false : null;
+    if (terdaftar === null) {
+      terdaftar = await cekPlatKeServer(normalizePlate(nilai.plat));
+    }
+    const statusAwal = terdaftar === false ? STATUS_LUAR_ARMADA : null;
+
     try {
       const baris = await simpan(
         normalizePlate(nilai.plat),
         nilai.tanggal,
         nilai.jam,
         nilai.deskripsi,
-        fotoUrl
+        fotoUrl,
+        statusAwal
       );
-      setTerkirim(baris.id);
+      setTerkirim({ id: baris.id, luarArmada: statusAwal === STATUS_LUAR_ARMADA });
     } catch {
       setPesanGalat(copy.errors.network);
     } finally {
@@ -138,6 +202,7 @@ export default function PengaduanForm() {
     setGalat({});
     setPesanGalat(null);
     setTerkirim(null);
+    setCekPlat("idle");
   }
 
   if (terkirim) {
@@ -152,11 +217,11 @@ export default function PengaduanForm() {
         <p className="mt-3 text-sm text-slate-600">
           {copy.successDescription}{" "}
           <span className="font-mono text-base font-bold text-slate-900">
-            #{terkirim.slice(0, 8).toUpperCase()}
+            #{terkirim.id.slice(0, 8).toUpperCase()}
           </span>
         </p>
         <p className="mt-4 inline-flex rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-amber-700">
-          {copy.successStatus}
+          {terkirim.luarArmada ? copy.successStatusOutside : copy.successStatus}
         </p>
         <p className="mx-auto mt-4 max-w-md text-sm text-slate-500">
           {copy.successNote}
@@ -204,18 +269,36 @@ export default function PengaduanForm() {
               value={nilai.plat}
               onChange={ubah("plat")}
               placeholder={copy.platePlaceholder}
-              className={`mt-2 w-full rounded-lg border px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-tint ${
-                galat.plat
+              inputMode="text"
+              autoCapitalize="characters"
+              maxLength={12}
+              aria-describedby="plat-status"
+              className={`mt-2 w-full rounded-lg border px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-slate-900 placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-tint ${
+                galat.plat || cekPlat === "invalid"
                   ? "border-red-300 focus:border-red-400"
-                  : "border-slate-200 focus:border-accent"
+                  : cekPlat === "found"
+                    ? "border-emerald-300 focus:border-emerald-400"
+                    : "border-slate-200 focus:border-accent"
               }`}
               aria-required="true"
             />
-            {galat.plat && (
-              <p className="mt-2 text-xs font-medium text-red-600" role="alert">
-                {galat.plat}
-              </p>
-            )}
+            <div id="plat-status" aria-live="polite">
+              {galat.plat || cekPlat === "invalid" ? (
+                <p className="mt-2 text-xs font-medium text-red-600" role="alert">
+                  {galat.plat ?? copy.errors.plate}
+                </p>
+              ) : cekPlat === "checking" ? (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                  {copy.plateCheck.checking}
+                </p>
+              ) : cekPlat === "found" ? (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                  <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2} />
+                  {copy.plateCheck.found}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div>
@@ -256,6 +339,18 @@ export default function PengaduanForm() {
             />
           </div>
         </div>
+
+        {/* Peringatan kuning selebar form: plat tidak terdaftar, tetapi
+            laporan tetap boleh dikirim (status luar_armada). */}
+        {cekPlat === "notFound" && !galat.plat && (
+          <p
+            role="status"
+            className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-800"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" strokeWidth={2} />
+            <span>{copy.plateCheck.notFound}</span>
+          </p>
+        )}
 
         <div>
           <label

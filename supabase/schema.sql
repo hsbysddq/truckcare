@@ -69,7 +69,7 @@ create table if not exists pengaduan (
   jam         time,
   deskripsi   text not null,
   foto_url    text,
-  status      text not null default 'menunggu',  -- menunggu | valid | ditolak
+  status      text not null default 'menunggu',  -- menunggu | valid | ditolak | perlu-ditinjau | luar_armada
   alasan      text,
   created_at  timestamptz not null default now()
 );
