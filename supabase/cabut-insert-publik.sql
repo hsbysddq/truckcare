@@ -9,6 +9,6 @@
 drop policy if exists pengaduan_insert_publik on public.pengaduan;
 
 -- Cek: seharusnya tidak ada policy bertipe INSERT lagi di tabel pengaduan.
-select polname from pg_policies
+select policyname, cmd, permissive from pg_policies
 where schemaname = 'public' and tablename = 'pengaduan'
   and cmd = 'INSERT';
