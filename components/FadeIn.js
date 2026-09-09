@@ -7,6 +7,7 @@ export default function FadeIn({
   children,
   className = "",
   delay = 0,
+  ...rest
 }) {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -41,6 +42,7 @@ export default function FadeIn({
       className={`transition-all duration-700 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
       } ${className}`}
+      {...rest}
     >
       {children}
     </Tag>

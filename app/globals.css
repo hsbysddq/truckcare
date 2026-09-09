@@ -155,6 +155,16 @@ body {
   }
 }
 
+/* Progress autoplay kartu tab Fitur: 0 ke 100% selama interval autoplay. */
+@keyframes preview-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
 @keyframes hero-content-in {
   from {
     opacity: 0;

@@ -13,6 +13,10 @@ export default function Hero() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  // 0 saat hero penuh terlihat, 1 saat hero habis tergulir: konten
+  // diangkat pelan dan memudar (parallax), latar tetap di tempat.
+  const [parallax, setParallax] = useState(0);
+  const sectionRef = useRef(null);
   const touchStartXRef = useRef(null);
 
   useEffect(() => {
@@ -22,6 +26,33 @@ export default function Hero() {
     mql.addEventListener("change", handleChange);
     return () => mql.removeEventListener("change", handleChange);
   }, []);
+
+  useEffect(() => {
+    if (reducedMotion) return undefined;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = sectionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      // Di luar viewport tidak perlu hitung ulang: nilai mentok 0/1,
+      // dan setState dengan nilai sama tidak me-render ulang.
+      if (rect.top > window.innerHeight || rect.bottom < 0) return;
+      const total = el.offsetHeight || 1;
+      setParallax(Math.min(Math.max(-rect.top, 0), total) / total);
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [reducedMotion]);
 
   useEffect(() => {
     if (paused || reducedMotion) return undefined;
@@ -74,6 +105,7 @@ export default function Hero() {
     <section
       id="hero"
       data-hero
+      ref={sectionRef}
       className="group relative flex min-h-[90vh] w-full flex-col overflow-hidden bg-slate-950"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -126,7 +158,19 @@ export default function Hero() {
 
       {/* Padding atas = tinggi navbar (token) + ruang napas; dipakai padding,
           bukan margin, supaya titik tengah vertikal ikut bergeser. */}
-      <div className="relative z-10 flex flex-1 items-center px-6 pb-24 pt-[calc(var(--navbar-height)+1rem)] sm:px-10 sm:pb-20 lg:px-16">
+      {/* Pembungkus konten digeser + dipudarkan mengikuti scroll (parallax);
+          animasi masuk tiap slide tetap di elemen dalam supaya tidak bentrok. */}
+      <div
+        className="relative z-10 flex flex-1 items-center px-6 pb-24 pt-[calc(var(--navbar-height)+1rem)] sm:px-10 sm:pb-20 lg:px-16"
+        style={
+          reducedMotion || parallax === 0
+            ? undefined
+            : {
+                transform: `translateY(${parallax * -120}px)`,
+                opacity: Math.max(0, 1 - parallax * 1.5),
+              }
+        }
+      >
         <div className="mx-auto max-w-4xl text-center">
           <span
             key={`label-${activeIndex}`}

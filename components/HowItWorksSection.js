@@ -31,8 +31,10 @@ export default function HowItWorksSection() {
             {howItWorksSection.steps.map((step, index) => {
               const isLast = index === howItWorksSection.steps.length - 1;
               return (
-                <li
+                <FadeIn
+                  as="li"
                   key={step.number}
+                  delay={index * 90}
                   className={`relative flex gap-5 ${isLast ? "" : "pb-9"}`}
                 >
                   {!isLast && (
@@ -52,7 +54,7 @@ export default function HowItWorksSection() {
                       {step.description}
                     </p>
                   </div>
-                </li>
+                </FadeIn>
               );
             })}
           </ol>

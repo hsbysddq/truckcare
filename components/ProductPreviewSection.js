@@ -5,12 +5,16 @@ import Image from "next/image";
 import { productPreviewSection } from "@/lib/content";
 import { iconMap } from "@/components/icon-map";
 import BrowserFrame from "@/components/BrowserFrame";
+import FadeIn from "@/components/FadeIn";
 
+// Kartu tab ala workspace Elvin: lima kartu sebaris, kartu aktif menyala
+// dengan progress bar autoplay, preview besar berganti di bawahnya.
 export default function ProductPreviewSection() {
   const { eyebrow, headline, description, autoplayIntervalMs, items } =
     productPreviewSection;
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoplayEnabled, setAutoplayEnabled] = useState(true);
+  const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const tabRefs = useRef([]);
 
@@ -23,12 +27,12 @@ export default function ProductPreviewSection() {
   }, []);
 
   useEffect(() => {
-    if (!autoplayEnabled || reducedMotion) return undefined;
+    if (!autoplayEnabled || reducedMotion || paused) return undefined;
     const timer = setInterval(() => {
       setActiveIndex((current) => (current + 1) % items.length);
     }, autoplayIntervalMs);
     return () => clearInterval(timer);
-  }, [autoplayEnabled, reducedMotion, items.length, autoplayIntervalMs]);
+  }, [autoplayEnabled, reducedMotion, paused, items.length, autoplayIntervalMs]);
 
   function selectTab(index) {
     setActiveIndex(index);
@@ -36,11 +40,11 @@ export default function ProductPreviewSection() {
   }
 
   function handleKeyDown(event) {
-    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     let nextIndex = activeIndex;
-    if (event.key === "ArrowDown") nextIndex = (activeIndex + 1) % items.length;
-    if (event.key === "ArrowUp")
+    if (event.key === "ArrowRight") nextIndex = (activeIndex + 1) % items.length;
+    if (event.key === "ArrowLeft")
       nextIndex = (activeIndex - 1 + items.length) % items.length;
     if (event.key === "Home") nextIndex = 0;
     if (event.key === "End") nextIndex = items.length - 1;
@@ -49,11 +53,12 @@ export default function ProductPreviewSection() {
   }
 
   const activeItem = items[activeIndex];
+  const showProgress = autoplayEnabled && !reducedMotion;
 
   return (
     <section id="fitur" className="bg-white py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
+        <FadeIn className="mx-auto max-w-2xl text-center">
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-cta sm:text-sm">
             {eyebrow}
           </span>
@@ -63,15 +68,17 @@ export default function ProductPreviewSection() {
           <p className="mt-4 text-base leading-relaxed text-slate-500">
             {description}
           </p>
-        </div>
+        </FadeIn>
 
-        <div className="mt-16 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+        <FadeIn delay={100}>
           <div
             role="tablist"
-            aria-orientation="vertical"
+            aria-orientation="horizontal"
             aria-label={eyebrow}
             onKeyDown={handleKeyDown}
-            className="flex flex-col gap-2"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            className="mt-12 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5 lg:overflow-visible lg:pb-0"
           >
             {items.map((item, index) => {
               const Icon = iconMap[item.icon];
@@ -89,72 +96,84 @@ export default function ProductPreviewSection() {
                   aria-controls="preview-tabpanel"
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => selectTab(index)}
-                  className={`flex min-h-11 w-full items-start gap-4 rounded-xl border-l-4 px-4 py-4 text-left transition-colors duration-200 ${
+                  className={`relative flex min-w-[240px] snap-start flex-col rounded-2xl border p-5 pb-8 text-left transition-all duration-300 motion-reduce:transform-none lg:min-w-0 ${
                     isActive
-                      ? "border-cta bg-white shadow-sm shadow-slate-900/5"
-                      : "border-transparent bg-transparent hover:bg-slate-50"
+                      ? "border-cta/60 bg-white shadow-xl shadow-cta/10"
+                      : "border-slate-200 bg-slate-50/70 hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-slate-900/5"
                   }`}
                 >
-                  <Icon
-                    className={`h-6 w-6 flex-none ${
-                      isActive ? "text-cta" : "text-slate-400"
+                  <span
+                    className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${
+                      isActive
+                        ? "bg-cta/10 text-cta"
+                        : "bg-white text-slate-400 ring-1 ring-slate-200"
                     }`}
-                    strokeWidth={1.75}
-                  />
-                  <span className="flex flex-col">
-                    <span
-                      className={`text-base font-bold ${
-                        isActive ? "text-slate-900" : "text-slate-500"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                    <span
-                      className={`mt-1 text-sm leading-relaxed ${
-                        isActive ? "text-slate-600" : "text-slate-400"
-                      }`}
-                    >
-                      {item.description}
-                    </span>
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={1.75} />
                   </span>
+                  <span
+                    className={`mt-4 text-sm font-bold ${
+                      isActive ? "text-slate-900" : "text-slate-600"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="mt-1 line-clamp-3 text-xs leading-relaxed text-slate-500">
+                    {item.description}
+                  </span>
+                  {isActive && showProgress && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-5 bottom-4 h-1 overflow-hidden rounded-full bg-slate-100"
+                    >
+                      <span
+                        key={activeIndex}
+                        className="block h-full rounded-full bg-cta"
+                        style={{
+                          animation: `preview-progress ${autoplayIntervalMs}ms linear forwards`,
+                          animationPlayState: paused ? "paused" : "running",
+                        }}
+                      />
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
+        </FadeIn>
 
+        <FadeIn delay={200}>
           <div
             id="preview-tabpanel"
             role="tabpanel"
             aria-labelledby={`preview-tab-${activeItem.key}`}
             tabIndex={0}
-            className="flex items-center"
+            className="mt-8"
           >
-            <div className="w-full">
-              <BrowserFrame>
-                <div className="relative aspect-[16/10] w-full bg-white">
-                  {items.map((item, index) => (
-                    <div
-                      key={item.key}
-                      aria-hidden={index !== activeIndex}
-                      className={`absolute inset-0 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
-                        index === activeIndex ? "opacity-100" : "opacity-0"
-                      }`}
-                    >
-                      <Image
-                        src={item.image}
-                        alt={item.alt}
-                        fill
-                        priority={index === 0}
-                        sizes="(max-width: 1024px) 100vw, 50vw"
-                        className="object-cover object-top"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </BrowserFrame>
-            </div>
+            <BrowserFrame>
+              <div className="relative aspect-[16/9] w-full bg-white">
+                {items.map((item, index) => (
+                  <div
+                    key={item.key}
+                    aria-hidden={index !== activeIndex}
+                    className={`absolute inset-0 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
+                      index === activeIndex ? "opacity-100" : "opacity-0"
+                    }`}
+                  >
+                    <Image
+                      src={item.image}
+                      alt={item.alt}
+                      fill
+                      priority={index === 0}
+                      sizes="100vw"
+                      className="object-cover object-top"
+                    />
+                  </div>
+                ))}
+              </div>
+            </BrowserFrame>
           </div>
-        </div>
+        </FadeIn>
       </div>
     </section>
   );
