@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { catatChat, konteksArmada } from "@/lib/supabase";
+import { catatChat, konteksArmada, statistikPengaduan } from "@/lib/supabase";
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
@@ -12,6 +12,23 @@ import { jadwalPage } from "@/lib/content";
 // penyimpangan dijawab dari lib/schedule-analysis.js (deterministik, tidak
 // perlu OpenClaw); temuannya juga disertakan sebagai konteks ke OpenClaw.
 const POLA_JADWAL = /\b(jadwal|penyimpangan|deviasi|terlambat|bergerak tanpa)\b/i;
+
+// Tool lokal agent: "statistik_pengaduan". Pertanyaan seputar jumlah/
+// statistik pengaduan dijawab deterministik dari tabel pengaduan, apa pun
+// kondisi OpenClaw (yang tidak punya konteks pengaduan).
+const POLA_PENGADUAN = /pengaduan|keluhan|laporan/i;
+const POLA_JUMLAH = /\b(total|jumlah|berapa|diterima|masuk|statistik)\b/i;
+
+async function jawabanPengaduan(st) {
+  if (!st) return null;
+  if (st.total === 0) return { text: "Belum ada pengaduan yang diterima.", total: 0 };
+  const baris = [`Total pengaduan diterima: ${st.total}.`];
+  for (const s of st.statuses) {
+    if (s.jumlah) baris.push(`${s.jumlah} ${s.label}`);
+  }
+  for (const [k, v] of Object.entries(st.lain)) baris.push(`${v} ${k}`);
+  return { text: baris.join("\n"), total: st.total };
+}
 
 async function jalankanToolJadwal() {
   try {
@@ -56,6 +73,27 @@ export async function POST(req) {
   // System prompt admin (edit dari Pengaturan) ikut dikirim ke agent.
   konteks = konteks ?? { drivers: [], trips: [] };
   konteks.systemPrompt = await muatPrompt();
+  // Konteks tambahan untuk agent: statistik pengaduan (best-effort).
+  const stPengaduan = await statistikPengaduan().catch(() => null);
+  if (stPengaduan) konteks.pengaduan = stPengaduan;
+
+  // Tool pengaduan deterministik (bebas OpenClaw). Hanya saat pengaduan
+  // ditanyakan bersama jumlah/total supaya tidak merampok pertanyaan lain.
+  if (POLA_PENGADUAN.test(pesan) && POLA_JUMLAH.test(pesan)) {
+    const hasil = await jawabanPengaduan(await statistikPengaduan());
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        toolTrace: {
+          label: "Memanggil statistik_pengaduan",
+          command: "statistik_pengaduan()",
+          result: { total: hasil.total },
+        },
+      });
+    }
+  }
 
   // Pertanyaan soal jadwal dijawab tool lokal supaya hasilnya konsisten
   // dengan halaman Jadwal, apa pun kondisi OpenClaw.
