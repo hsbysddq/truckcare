@@ -140,47 +140,145 @@ async function jawabanKondisiTruk(pesan, trukKonteks) {
     if (!t) return { text: `Plat ${plat} tidak terdaftar di armada.`, total: 0 };
 
     const kec = Math.round(Number(t.speedKph) || 0);
-    const st = t.tripStatus ?? t.status ?? "-";
-    const driver = t.driverName ? `Pengemudi: ${t.driverName}` : null;
-    const rute =
-      t.origin && t.destination ? `${t.origin} → ${t.destination}` : null;
-    const posisi =
+    const gerak = kec > 5;
+    const gerakLabel = gerak ? "bergerak" : "berhenti";
+    const jenis = t.vehicleTypeShort ?? "-";
+    const rute = t.origin && t.destination ? `${t.origin} → ${t.destination}` : null;
+    const driver = t.driverName ?? null;
+    const koordinat =
       t.lat != null && t.lng != null
-        ? `${Number(t.lat).toFixed(4)}, ${Number(t.lng).toFixed(4)}`
+        ? `${Number(t.lat).toFixed(5)}, ${Number(t.lng).toFixed(5)}`
         : null;
+    const waktuTerakhir = t.lastUpdate
+      ? new Date(t.lastUpdate).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+      : null;
+    const progres =
+      t.progressPct != null ? `${Math.min(Math.max(Math.round(t.progressPct), 0), 100)}%` : null;
 
-    const baris = [
-      `${t.plateNumber} (${t.vehicleTypeShort ?? "-"}): ${st}, ${kec} km/jam.`,
-    ];
-    if (rute) baris.push(`Rute aktif: ${rute}.`);
-    if (driver) baris.push(driver);
-    if (posisi) baris.push(`Posisi terakhir: ${posisi}.`);
-
-    // Jadwal hari ini untuk truk itu (kalau ada), supaya jawaban mencakup
-    // rencana yang sama dengan halaman Jadwal.
+    // Jadwal truk hari ini (rencana dari halaman Jadwal).
+    let jadwalHariIni = [];
     try {
       const semua = await listSchedules();
       const awal = new Date();
       awal.setHours(0, 0, 0, 0);
       const akhir = new Date(awal);
       akhir.setDate(akhir.getDate() + 1);
-      const milik = (semua || []).filter(
+      jadwalHariIni = (semua || []).filter(
         (s) =>
           kunciPlatLokal(s.plate_number) === platKey &&
           new Date(s.planned_departure) >= awal &&
           new Date(s.planned_departure) < akhir
       );
-      if (milik.length) {
-        const padat = milik.slice(0, 3).map(
-          (s) =>
-            `• ${formatDateTime(s.planned_departure)} → ${formatDateTime(s.planned_arrival)}: ${s.origin} → ${s.destination} (${s.status})`
-        );
-        baris.push(`Jadwal hari ini (${milik.length}):`);
-        baris.push(...padat);
-      }
     } catch {}
 
-    return { text: baris.join("\n"), total: 1 };
+    const punyaJadwal = jadwalHariIni.length > 0;
+    const barisJadwal = jadwalHariIni.slice(0, 3).map(
+      (s) =>
+        `• ${formatDateTime(s.planned_departure)} - ${formatDateTime(s.planned_arrival)}: ${s.origin} → ${s.destination} (${s.status})`
+    );
+
+    // ---- Bentuk jawaban beda-beda sesuai intent ----
+    const fokusPosisi = /di mana|dimana|posisi|lokasi|koordinat|kemana|ke mana/i.test(pesan);
+    const fokusRekap = /rekap|ringkas.*(perjalanan|aktivitas)|perjalanan.*hari ini|aktivitas.*hari ini/i.test(pesan);
+    const fokusStatus = /status|sekarang|saat ini/i.test(pesan);
+
+    let teks = "";
+    let judulKartu = "";
+    let barisKartu = [];
+
+    if (fokusPosisi) {
+      // Jawaban fokus: posisi truk sekarang.
+      const arah = rute ? `, sedang dalam perjalanan ${rute}` : "";
+      teks = `Truk ${plat} (${jenis}) saat ini ${gerakLabel}${kec ? ` ${kec} km/jam` : ""}${arah}.`;
+      if (koordinat) teks += `\nPosisi terakhir: ${koordinat}`;
+      if (progres) teks += ` (progres ${progres})`;
+      if (driver) teks += `\nPengemudi: ${driver}`;
+      judulKartu = `Posisi ${plat} (${jenis})`;
+      barisKartu = [
+        { label: "Status", value: gerakLabel },
+        ...(kec ? [{ label: "Kecepatan", value: `${kec} km/jam` }] : []),
+        ...(rute ? [{ label: "Perjalanan", value: rute }] : []),
+        ...(driver ? [{ label: "Pengemudi", value: driver }] : []),
+        ...(koordinat ? [{ label: "Koordinat", value: koordinat }] : []),
+        ...(waktuTerakhir ? [{ label: "Terakhir diperbarui", value: waktuTerakhir }] : []),
+      ];
+    } else if (fokusRekap) {
+      // Jawaban fokus: rekap perjalanan hari ini.
+      if (punyaJadwal) {
+        teks = `Perjalanan ${plat} (${jenis}) hari ini (${jadwalHariIni.length} jadwal):\n${barisJadwal.join("\n")}`;
+      } else {
+        teks = `Perjalanan ${plat} (${jenis}) hari ini: belum ada jadwal tercatat.`;
+      }
+      if (gerak || rute) {
+        const bagian = [];
+        if (gerak) bagian.push(`saat ini ${gerakLabel}${kec ? ` ${kec} km/jam` : ""}`);
+        if (rute) bagian.push(`menempuh ${rute}`);
+        if (progres) bagian.push(`progres ${progres}`);
+        if (bagian.length) teks += `\n${plat} ${bagian.join(", ")}.`;
+      }
+      judulKartu = `Rekap perjalanan ${plat}`;
+      barisKartu = [
+        { label: "Jumlah jadwal hari ini", value: String(jadwalHariIni.length) },
+        ...(gerak ? [{ label: "Status sekarang", value: gerakLabel }] : []),
+        ...(rute ? [{ label: "Rute aktif", value: rute }] : []),
+        ...(koordinat ? [{ label: "Posisi terakhir", value: koordinat }] : []),
+        ...(driver ? [{ label: "Pengemudi", value: driver }] : []),
+      ];
+      if (punyaJadwal) {
+        barisKartu.push({
+          label: "Jadwal",
+          value: jadwalHariIni
+            .slice(0, 3)
+            .map(
+              (s) =>
+                `${formatDateTime(s.planned_departure)} ${s.origin} → ${s.destination} (${s.status})`
+            )
+            .join(" | "),
+        });
+      }
+    } else if (fokusStatus) {
+      // Jawaban fokus: status truk sekarang.
+      teks = `Status ${plat} (${jenis}) sekarang: ${gerakLabel}`;
+      if (kec) teks += ` dengan kecepatan ${kec} km/jam`;
+      teks += ".";
+      if (rute) teks += `\nSedang dalam perjalanan ${rute}${progres ? ` (progres ${progres})` : ""}.`;
+      if (koordinat) teks += `\nPosisi: ${koordinat}`;
+      if (driver) teks += `\nPengemudi: ${driver}`;
+      judulKartu = `Status ${plat}`;
+      barisKartu = [
+        { label: "Status", value: gerakLabel },
+        ...(kec ? [{ label: "Kecepatan", value: `${kec} km/jam` }] : []),
+        ...(rute ? [{ label: "Rute", value: rute }] : []),
+        ...(driver ? [{ label: "Pengemudi", value: driver }] : []),
+        ...(koordinat ? [{ label: "Posisi", value: koordinat }] : []),
+      ];
+    } else {
+      // Jawaban default: rangkum kondisi truk.
+      teks = `Kondisi ${plat} (${jenis}) hari ini: ${gerakLabel}${kec ? `, ${kec} km/jam` : ""}.`;
+      if (rute) teks += `\nRute aktif: ${rute}${progres ? ` (progres ${progres})` : ""}.`;
+      if (driver) teks += `\nPengemudi: ${driver}.`;
+      if (koordinat) teks += `\nPosisi terakhir: ${koordinat}.`;
+      if (punyaJadwal) {
+        teks += `\nJadwal hari ini (${jadwalHariIni.length}):\n${barisJadwal.join("\n")}`;
+      }
+      judulKartu = `Kondisi ${plat} (${jenis})`;
+      barisKartu = [
+        { label: "Status", value: gerakLabel },
+        ...(kec ? [{ label: "Kecepatan", value: `${kec} km/jam` }] : []),
+        ...(rute ? [{ label: "Rute", value: rute }] : []),
+        ...(driver ? [{ label: "Pengemudi", value: driver }] : []),
+        ...(koordinat ? [{ label: "Posisi", value: koordinat }] : []),
+        ...(punyaJadwal
+          ? [{ label: "Jadwal hari ini", value: String(jadwalHariIni.length) }]
+          : []),
+      ];
+    }
+
+    return {
+      text: teks,
+      total: 1,
+      dataCard: { title: judulKartu, rows: barisKartu },
+    };
   } catch {
     return null;
   }
@@ -330,6 +428,7 @@ export async function POST(req) {
       return NextResponse.json({
         text: hasil.text,
         mode: "tool",
+        ...(hasil.dataCard ? { dataCard: hasil.dataCard } : {}),
         toolTrace: {
           label: "Memanggil kondisi_truk",
           command: "kondisi_truk()",
