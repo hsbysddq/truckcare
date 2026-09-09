@@ -1,4 +1,4 @@
-import { pengaturanPage, dashboardTitle } from "@/lib/content";
+import { dashboardTitle, pengaturanPage } from "@/lib/content";
 import { getUser } from "@/lib/auth";
 import PengaturanTabs from "@/components/dashboard/pengaturan/PengaturanTabs";
 import AccountCard from "@/components/dashboard/pengaturan/AccountCard";
@@ -37,13 +37,6 @@ export default async function PengaturanPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          {pengaturanPage.title}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">{pengaturanPage.subtitle}</p>
-      </div>
-
       <PengaturanTabs tabs={tabs} sections={sections} />
     </div>
   );

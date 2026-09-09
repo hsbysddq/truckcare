@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { catatChat, konteksArmada, statistikPengaduan } from "@/lib/supabase";
+import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape } from "@/lib/supabase";
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
+import { buildAnalytics } from "@/lib/analytics";
+import { getAnalyticsSource } from "@/lib/data";
 import { muatPrompt } from "@/lib/agent-config";
 import { jadwalPage } from "@/lib/content";
 
@@ -18,6 +20,38 @@ const POLA_JADWAL = /\b(jadwal|penyimpangan|deviasi|terlambat|bergerak tanpa)\b/
 // kondisi OpenClaw (yang tidak punya konteks pengaduan).
 const POLA_PENGADUAN = /pengaduan|keluhan|laporan/i;
 const POLA_JUMLAH = /\b(total|jumlah|berapa|diterima|masuk|statistik)\b/i;
+const POLA_PENDING = /belum|divalidasi|pending|menunggu/i;
+
+// Tool lokal agent: "cek_anomali_solar". Jawaban deterministik dari modul
+// analitik yang sama dengan halaman Analitik (insight fuelByTruck).
+const POLA_SOLAR = /solar|anomali|bahan bakar|\bbbm\b/i;
+
+function jawabanSolar() {
+  try {
+    const a = buildAnalytics(getAnalyticsSource(), {});
+    const insight = a?.fuelByTruck?.insight;
+    if (insight) return { text: insight };
+  } catch {}
+  return null;
+}
+
+// Tool lokal agent: daftar pengaduan yang menunggu validasi (bukan OpenClaw).
+async function jawabanPengaduanMenunggu() {
+  try {
+    const list = await getComplaintsShape();
+    const tunggu = (list || []).filter((c) => c.statusMentah === "menunggu");
+    if (!tunggu.length)
+      return { text: "Tidak ada pengaduan yang menunggu validasi.", total: 0 };
+    const baris = tunggu
+      .slice(0, 5)
+      .map(
+        (c) => `• ${c.plateNumber} (${c.incidentAt}): ${(c.reporterNote ?? "").slice(0, 80)}`
+      );
+    return { text: `Menunggu validasi (${tunggu.length}):\n${baris.join("\n")}`, total: tunggu.length };
+  } catch {
+    return null;
+  }
+}
 
 async function jawabanPengaduan(st) {
   if (!st) return null;
@@ -77,8 +111,40 @@ export async function POST(req) {
   const stPengaduan = await statistikPengaduan().catch(() => null);
   if (stPengaduan) konteks.pengaduan = stPengaduan;
 
-  // Tool pengaduan deterministik (bebas OpenClaw). Hanya saat pengaduan
-  // ditanyakan bersama jumlah/total supaya tidak merampok pertanyaan lain.
+  // Tool anomali solar deterministik (bebas OpenClaw).
+  if (POLA_SOLAR.test(pesan)) {
+    const hasil = jawabanSolar();
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        toolTrace: {
+          label: "Memanggil cek_anomali_solar",
+          command: "cek_anomali_solar()",
+          result: {},
+        },
+      });
+    }
+  }
+
+  // Tool pengaduan deterministik (bebas OpenClaw). Daftar tunggu bila
+  // ditanya soal validasi/pending; statistik bila ditanya jumlah/total.
+  if (POLA_PENGADUAN.test(pesan) && POLA_PENDING.test(pesan)) {
+    const hasil = await jawabanPengaduanMenunggu();
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        toolTrace: {
+          label: "Memanggil daftar_pengaduan_menunggu",
+          command: "daftar_pengaduan_menunggu()",
+          result: { total: hasil.total },
+        },
+      });
+    }
+  }
   if (POLA_PENGADUAN.test(pesan) && POLA_JUMLAH.test(pesan)) {
     const hasil = await jawabanPengaduan(await statistikPengaduan());
     if (hasil) {

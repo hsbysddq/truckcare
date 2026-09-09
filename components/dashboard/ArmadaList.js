@@ -83,7 +83,11 @@ export default function ArmadaList({ trucks }) {
       ) : (
         <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((truck) => (
-            <ArmadaCard key={truck.id} truck={truck} />
+            <ArmadaCard
+              key={truck.id}
+              truck={truck}
+              name={truck.model ?? truck.nama ?? truck.plateNumber}
+            />
           ))}
         </div>
       )}

@@ -24,6 +24,14 @@ function namaOperator(user) {
   return user?.email ?? user?.id ?? "operator";
 }
 
+// ID pengaduan adalah UUID. Tanpa validasi ini, id sampah (mis. kode display
+// "RPT-082" dari data contoh) membuat PostgREST error sintaks uuid → 500.
+// Kembalikan 404 lebih dulu supaya panel menampilkan riwayat kosong.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function idTidakValid(id) {
+  return !UUID.test(String(id ?? ""));
+}
+
 // 1-3 poin ringkas alasan keputusan: temuan agent bila berbentuk daftar,
 // selain itu kalimat pertama-ketiga dari teks alasan.
 function poinAlasan(findings, alasan) {
@@ -69,6 +77,7 @@ export async function POST(req, { params }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "belum login" }, { status: 401 });
   const { id } = await params;
+  if (idTidakValid(id)) return NextResponse.json({ error: "pengaduan tidak ditemukan" }, { status: 404 });
   const body = await req.json().catch(() => ({}));
 
   let status =
@@ -123,6 +132,7 @@ export async function PATCH(req, { params }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "belum login" }, { status: 401 });
   const { id } = await params;
+  if (idTidakValid(id)) return NextResponse.json({ error: "pengaduan tidak ditemukan" }, { status: 404 });
   const body = await req.json().catch(() => ({}));
 
   let update;
@@ -165,6 +175,7 @@ export async function DELETE(req, { params }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "belum login" }, { status: 401 });
   const { id } = await params;
+  if (idTidakValid(id)) return NextResponse.json({ error: "pengaduan tidak ditemukan" }, { status: 404 });
   const body = await req.json().catch(() => ({}));
   const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
   if (!reason) return NextResponse.json({ error: "alasan penghapusan wajib diisi" }, { status: 400 });
@@ -182,6 +193,7 @@ export async function GET(_req, { params }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "belum login" }, { status: 401 });
   const { id } = await params;
+  if (idTidakValid(id)) return NextResponse.json({ error: "pengaduan tidak ditemukan" }, { status: 404 });
   if (!SERVICE) return NextResponse.json({ history: [] });
 
   try {
