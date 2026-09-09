@@ -101,7 +101,7 @@ export default function DriverStatusPanel({ data, loading, error, selectedTruckI
                         {r.currentTruck && r.todayRoute && (
                           <span className="inline-flex items-center gap-1">
                             <Route className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} aria-hidden="true" />
-                            {r.todayRoute}
+                            {r.todayRoute.label}
                           </span>
                         )}
                       </span>
