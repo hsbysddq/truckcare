@@ -16,24 +16,11 @@ export default function DashboardPengaduanPage({ initialTrucks = [] }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(complaints[0]?.id ?? null);
   // Plat armada untuk menjelaskan kenapa bukti telematika kosong.
-  const [fleetPlates, setFleetPlates] = useState(
-    () => new Set(initialTrucks.map((t) => normalizePlate(t.plateNumber)))
+  // Plat armada dari server (getActiveTrucks); tidak perlu fetch ulang.
+  const fleetPlates = useMemo(
+    () => new Set(initialTrucks.map((t) => normalizePlate(t.plateNumber))),
+    [initialTrucks]
   );
-
-  useEffect(() => {
-    let batal = false;
-    fetch("/api/trucks", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!batal && Array.isArray(data)) {
-          setFleetPlates(new Set(data.map((t) => normalizePlate(t.plateNumber))));
-        }
-      })
-      .catch(() => {});
-    return () => {
-      batal = true;
-    };
-  }, []);
 
   const adaYangDianalisis = complaints.some(
     (c) => !c.deletedAt && (c.analysisStatus === "menunggu" || c.analysisStatus === "berjalan")
