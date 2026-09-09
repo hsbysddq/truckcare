@@ -18,6 +18,7 @@ import { supabaseUrl, baca } from "@/lib/supabase";
 // diubah lewat route ini. Kolom: lihat supabase/pengaduan-keputusan.sql.
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const OPENCLAW_KEY = process.env.OPENCLAW_API_KEY ?? "";
 const UI_STATUS = { valid: "tervalidasi", ditolak: "ditolak", menunggu: "pending" };
 
 function namaOperator(user) {
@@ -258,9 +259,11 @@ async function validasiAI(pengaduanId) {
   const endpoint = process.env.OPENCLAW_ENDPOINT;
   if (!endpoint) return null;
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (OPENCLAW_KEY) headers["X-API-KEY"] = OPENCLAW_KEY;
     const res = await fetch(`${endpoint}/api/validasi-pengaduan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ pengaduan_id: pengaduanId }),
       signal: AbortSignal.timeout(20000),
       cache: "no-store",
