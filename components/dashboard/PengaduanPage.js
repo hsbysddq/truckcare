@@ -118,29 +118,32 @@ export default function DashboardPengaduanPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">
-        <div>
-          <div className="flex flex-wrap gap-2">
-            {pengaduanManagementPage.filters.map((filter) => {
-              const active = activeFilter === filter.key;
-              return (
-                <button
-                  key={filter.key}
-                  type="button"
-                  onClick={() => setActiveFilter(filter.key)}
-                  className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-semibold transition-colors ${
-                    active
-                      ? "bg-slate-900 text-white"
-                      : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              );
-            })}
-          </div>
+      {/* Baris filter selebar konten: enam pill muat satu baris di layar lebar,
+          membungkus di mobile. Tidak ada hitungan per filter di sini. */}
+      <div role="group" aria-label="Filter status" className="mt-6 flex flex-wrap gap-2">
+        {pengaduanManagementPage.filters.map((filter) => {
+          const active = activeFilter === filter.key;
+          return (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => setActiveFilter(filter.key)}
+              aria-pressed={active}
+              className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-colors ${
+                active
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+      </div>
 
-          <div className="mt-4 space-y-4">
+      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">
+        <div>
+          <div className="space-y-4">
             {filtered.map((complaint) => (
               <ComplaintCard
                 key={complaint.id}
