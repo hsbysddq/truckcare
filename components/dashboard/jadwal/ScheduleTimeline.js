@@ -104,7 +104,7 @@ export default function ScheduleTimeline({
                   </Link>
                 ) : (
                   <span className="truncate text-[11px] text-slate-500">
-                    {truck.driverName ?? truck.nama ?? ""}
+                    {truck.driverName ?? truck.vehicleType ?? ""}
                   </span>
                 )}
               </div>

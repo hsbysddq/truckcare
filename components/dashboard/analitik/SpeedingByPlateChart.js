@@ -16,6 +16,23 @@ import { analitikPage } from "@/lib/content";
 const ACCENT = "#1b4f9c";
 const TOP = "#f4711f";
 
+// Label sumbu Y: plat (monospace) + jenis truk kecil di bawahnya.
+function PlateTick({ x, y, payload, data }) {
+  const row = data.find((d) => d.plateNumber === payload.value);
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={-4} y={-2} textAnchor="end" fontSize={12} fontFamily="monospace" fill="#334155">
+        {payload.value}
+      </text>
+      {row?.vehicleType && (
+        <text x={-4} y={11} textAnchor="end" fontSize={10} fill="#94a3b8">
+          {row.vehicleType}
+        </text>
+      )}
+    </g>
+  );
+}
+
 // Lebar penuh: seluruh armada ditampilkan (data sudah urut terbanyak dari
 // lib/analytics.js); batang teratas diberi warna beda sebagai penyumbang
 // pelanggaran terbanyak.
@@ -23,7 +40,8 @@ export default function SpeedingByPlateChart({ data }) {
   const copy = analitikPage.charts.speedingByPlate;
 
   return (
-    <div className="h-[400px] w-full">
+    // Tinggi mengikuti jumlah truk (min 400px) supaya semua label plat + jenis muat.
+    <div className="w-full" style={{ height: Math.max(400, data.length * 28 + 40) }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
@@ -42,14 +60,19 @@ export default function SpeedingByPlateChart({ data }) {
           <YAxis
             type="category"
             dataKey="plateNumber"
-            tick={{ fontSize: 12, fill: "#334155", fontFamily: "monospace" }}
+            tick={<PlateTick data={data} />}
+            interval={0}
             tickLine={false}
             axisLine={false}
-            width={100}
+            width={150}
           />
           <Tooltip
             cursor={{ fill: "#f1f5f9" }}
             contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0", fontSize: 12 }}
+            labelFormatter={(label, items) => {
+              const jenis = items?.[0]?.payload?.vehicleType;
+              return jenis ? `${label} · ${jenis}` : label;
+            }}
             formatter={(value, _name, item) => [
               `${value} ${copy.unit}${item.payload === data[0] ? ` · ${copy.topLabel}` : ""}`,
               copy.title,

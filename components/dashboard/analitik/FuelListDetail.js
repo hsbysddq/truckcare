@@ -355,6 +355,9 @@ export default function FuelListDetail({ trucks }) {
                   <span className="block truncate font-mono text-sm font-semibold text-slate-900">
                     {truck.plateNumber}
                   </span>
+                  {truck.vehicleType && (
+                    <span className="block truncate text-[11px] text-slate-400">{truck.vehicleType}</span>
+                  )}
                   <span
                     className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                       truck.anomalyCount > 0

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Route, Gauge, User } from "lucide-react";
 import { armadaPage, tripStatusMeta } from "@/lib/content";
 
-export default function ArmadaCard({ name, truck }) {
+export default function ArmadaCard({ truck }) {
   // Data live belum tentu berisi tripStatus yang dikenal, jatuhkan ke berhenti.
   const status = tripStatusMeta[truck.tripStatus] ?? tripStatusMeta.berhenti;
   // Telemetri live bisa mengirim desimal panjang; tampilkan bilangan bulat.
@@ -19,8 +19,8 @@ export default function ArmadaCard({ name, truck }) {
   return (
     <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-lg font-bold tracking-tight text-slate-900">
-          {name}
+        <h3 className="font-mono text-lg font-bold tracking-tight text-slate-900">
+          {truck.plateNumber}
         </h3>
         <span
           className={`inline-flex flex-none items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${status.badgeClass}`}
@@ -30,8 +30,8 @@ export default function ArmadaCard({ name, truck }) {
         </span>
       </div>
 
-      <p className="mt-1 truncate whitespace-nowrap text-sm text-slate-500">
-        {truck.plateNumber}
+      <p className="mt-1 truncate whitespace-nowrap text-sm text-slate-400">
+        {truck.vehicleType ?? truck.model ?? "-"}
       </p>
 
       <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">

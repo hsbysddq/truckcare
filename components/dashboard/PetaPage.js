@@ -129,8 +129,9 @@ export default function PetaPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-slate-900">
-                      {truck.plateNumber}
+                    <span className="min-w-0">
+                      <span className="block font-mono text-sm font-semibold text-slate-900">{truck.plateNumber}</span>
+                      <span className="block text-[11px] text-slate-400">{truck.vehicleType ?? ""}</span>
                     </span>
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${status.badgeClass}`}

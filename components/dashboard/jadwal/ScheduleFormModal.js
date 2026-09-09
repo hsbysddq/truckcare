@@ -167,7 +167,7 @@ export default function ScheduleFormModal({
               {trucks.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.plateNumber}
-                  {t.nama ? ` · ${t.nama}` : ""}
+                  {t.vehicleType ? ` · ${t.vehicleType}` : ""}
                 </option>
               ))}
             </select>

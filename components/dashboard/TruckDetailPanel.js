@@ -41,7 +41,10 @@ export default function TruckDetailPanel({ truck, history }) {
           <span className="block text-xl font-bold tracking-tight text-slate-900 transition-colors group-hover:text-accent">
             {truck.plateNumber}
           </span>
-          <span className="block text-sm text-slate-500">{truck.model ?? "-"}</span>
+          <span className="block text-sm text-slate-500">
+            {truck.vehicleType ?? "-"}
+            {truck.model && truck.model !== truck.vehicleType ? ` · ${truck.model}` : ""}
+          </span>
         </span>
         <ArrowUpRight
           className="mt-1 h-5 w-5 flex-none text-slate-300 transition-colors group-hover:text-accent"

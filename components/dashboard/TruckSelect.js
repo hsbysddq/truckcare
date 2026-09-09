@@ -23,7 +23,7 @@ export default function TruckSelect({ trucks, selectedTruckId, onSelect }) {
     const q = query.trim().toLowerCase();
     if (!q) return trucks;
     return trucks.filter((t) =>
-      [t.plateNumber, t.nama, t.driverName]
+      [t.plateNumber, t.vehicleType, t.driverName]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
@@ -154,7 +154,7 @@ export default function TruckSelect({ trucks, selectedTruckId, onSelect }) {
                         {truck.plateNumber}
                       </span>
                       <span className="block truncate text-xs text-slate-500">
-                        {truck.driverName ?? truck.nama ?? "-"}
+                        {truck.driverName ?? truck.vehicleType ?? "-"}
                       </span>
                     </span>
                     <span

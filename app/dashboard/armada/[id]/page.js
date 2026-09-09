@@ -79,8 +79,8 @@ export default async function TruckDetailPage({ params }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {truck.nama ?? truck.plateNumber}
+            <h1 className="font-mono text-2xl font-bold tracking-tight text-slate-900">
+              {truck.plateNumber}
             </h1>
             <span
               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${status.badgeClass}`}
@@ -89,8 +89,8 @@ export default async function TruckDetailPage({ params }) {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            {truck.plateNumber}
-            {truck.model ? ` · ${truck.model}` : ""}
+            {truck.vehicleType ?? "-"}
+            {truck.model && truck.model !== truck.vehicleType ? ` · ${truck.model}` : ""}
           </p>
         </div>
         <Link
