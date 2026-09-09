@@ -18,6 +18,7 @@ import { supabaseUrl, baca } from "@/lib/supabase";
 // diubah lewat route ini. Kolom: lihat supabase/pengaduan-keputusan.sql.
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const OPENCLAW_KEY = process.env.OPENCLAW_API_KEY ?? "";
 const UI_STATUS = { valid: "tervalidasi", ditolak: "ditolak", menunggu: "pending" };
 
 function namaOperator(user) {
@@ -235,5 +236,29 @@ export async function GET(_req, { params }) {
     return NextResponse.json({ history });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+// Tanya agent OpenClaw di VPS. Balik { status: "valid"|"ditolak", alasan? }
+// atau null kalau endpoint belum dikonfigurasi / tak terjangkau / gagal.
+async function validasiAI(pengaduanId) {
+  const endpoint = process.env.OPENCLAW_ENDPOINT;
+  if (!endpoint) return null;
+  try {
+    const res = await fetch(`${endpoint}/api/validasi-pengaduan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pengaduan_id: pengaduanId }),
+      signal: AbortSignal.timeout(20000),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      status: data?.status === "ditolak" ? "ditolak" : "valid",
+      alasan: data?.alasan ?? null,
+    };
+  } catch {
+    return null;
   }
 }

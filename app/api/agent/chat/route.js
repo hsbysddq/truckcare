@@ -192,12 +192,16 @@ export async function POST(req) {
   return NextResponse.json({ text: luring, mode: "luring" });
 }
 
+const OPENCLAW_KEY = process.env.OPENCLAW_API_KEY ?? "";
+
 async function telusurAgent(endpoint, pesan, konteks) {
   if (!endpoint) return null;
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (OPENCLAW_KEY) headers["X-API-KEY"] = OPENCLAW_KEY;
     const res = await fetch(`${endpoint}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ pesan, konteks }),
       signal: AbortSignal.timeout(30000),
       cache: "no-store",

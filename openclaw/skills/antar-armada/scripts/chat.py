@@ -7,18 +7,36 @@ Pemakaian:
     python3 chat.py "rekap perjalanan hari ini"
 """
 
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Optional
 
 from inti import (
-    supabase_get,
     posisi_terbaru_per_truk,
     trip_aktif_per_truk,
     truk_by_id,
     hitung_eta,
     haversine_km,
+    jumlah_truk,
 )
+
+import os, json
+
+
+def _log(msg, **kw):
+    print(
+        json.dumps(
+            {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "level": "INFO",
+                "msg": msg,
+                **kw,
+            },
+            ensure_ascii=False,
+        ),
+        file=sys.stderr,
+    )
 
 
 def cari_truk(plat_atau_nomor: str, trucks: dict) -> Optional[str]:
@@ -62,7 +80,7 @@ def jawab_umum(pertanyaan: str) -> str:
         )
 
     if "berapa" in q and "truk" in q:
-        return f"Total {len(trucks)} truk terdaftar di armada."
+        return f"Total {jumlah_truk()} truk terdaftar di armada."
 
     # default: daftar status
     if not posisi:
@@ -87,8 +105,6 @@ def jawab_truk(pertanyaan: str) -> str:
     trucks = truk_by_id()
 
     # ekstrak nomor truk
-    import re
-
     m = re.search(r"truk\s*(\d+)", q)
     if not m:
         return jawab_umum(pertanyaan)
