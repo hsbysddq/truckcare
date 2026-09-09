@@ -105,7 +105,7 @@ export default async function TruckDetailPage({ params }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-lg font-semibold text-slate-900">{copy.map.title}</h2>
-          <div className="mt-4 h-[380px] overflow-hidden rounded-xl">
+          <div className="relative z-0 isolate mt-4 h-[380px] overflow-hidden rounded-xl">
             {routePath.length > 0 || hasPosition ? (
               <TruckRouteMapLoader
                 routePath={routePath}

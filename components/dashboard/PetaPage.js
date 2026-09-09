@@ -75,7 +75,7 @@ export default function PetaPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.8fr_1fr]">
-        <div className="relative h-[60vh] overflow-hidden rounded-2xl border border-slate-200 bg-white lg:h-[calc(100vh-13rem)]">
+        <div className="relative z-0 isolate h-[60vh] overflow-hidden rounded-2xl border border-slate-200 bg-white lg:h-[calc(100vh-13rem)]">
           <TruckMap
             trucks={trucks}
             selectedTruckId={selected?.id ?? null}

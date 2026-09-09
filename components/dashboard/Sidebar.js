@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { User, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
@@ -20,6 +21,19 @@ export default function Sidebar({
   const sempit = collapsed;
   const namaTampil = user?.name ?? "-";
 
+  // Drawer terbuka: kunci scroll body dan tutup dengan Escape.
+  useEffect(() => {
+    if (!open) return undefined;
+    const sebelumnya = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = sebelumnya;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
   async function handleLogout() {
     const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
@@ -31,14 +45,14 @@ export default function Sidebar({
     <>
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+          className="fixed inset-0 z-overlay bg-black/40 lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-none flex-col border-r border-slate-200 bg-white transition-all duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-drawer flex h-screen flex-none flex-col border-r border-slate-200 bg-white transition-all duration-200 lg:static lg:translate-x-0 ${
           sempit ? "w-20" : "w-60"
         } ${open ? "translate-x-0" : "-translate-x-full"}`}
       >

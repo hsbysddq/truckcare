@@ -148,7 +148,8 @@ export default function DashboardOverviewPage({ driversApi = "/api/drivers" }) {
               onSelect={setSelectedTruckId}
             />
           </div>
-          <div className="mt-4 h-[420px] overflow-hidden rounded-xl">
+          {/* relative z-0 isolate: z-index Leaflet terkurung di dalam pembungkus ini. */}
+          <div className="relative z-0 isolate mt-4 h-[420px] overflow-hidden rounded-xl">
             <TruckMap
               trucks={trucks}
               selectedTruckId={selectedTruckId}

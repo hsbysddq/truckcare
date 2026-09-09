@@ -193,7 +193,7 @@ export default function AnalitikDashboard() {
           empty={empty || data?.violationLocations?.empty}
         >
           {data && (
-            <div className="h-[380px] overflow-hidden rounded-xl">
+            <div className="relative z-0 isolate h-[380px] overflow-hidden rounded-xl">
               <ViolationMapLoader locations={data.violationLocations.data} />
             </div>
           )}

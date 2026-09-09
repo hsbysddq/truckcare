@@ -41,7 +41,7 @@ function TermTooltip({ term }) {
         role="tooltip"
         id={id}
         hidden={!open}
-        className="absolute left-1/2 top-full z-30 mt-1 w-64 -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 whitespace-normal text-left text-xs font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
+        className="absolute left-1/2 top-full z-popover mt-1 w-64 -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 whitespace-normal text-left text-xs font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
       >
         {definition}
       </span>
