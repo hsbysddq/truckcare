@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import GlossaryText from "@/components/dashboard/GlossaryText";
 import { Plus } from "lucide-react";
 import { jadwalPage, scheduleStatusMeta } from "@/lib/content";
 import { summarizeToday } from "@/lib/schedule-analysis";
@@ -101,21 +100,8 @@ export default function JadwalDashboard({ apiBase = "/api/schedules", initialTru
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{copy.title}</h1>
-          <p className="mt-1 text-sm text-slate-500"><GlossaryText text={copy.subtitle} /></p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setModal({ open: true, initial: null })}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark"
-        >
-          <Plus className="h-4 w-4" strokeWidth={2} />
-          {copy.addButtonLabel}
-        </button>
-      </div>
-
+      {/* Judul + subtitle tampil di top nav (dashboardNav); tombol tambah
+          menempel di header kartu timeline, bukan baris sendirian. */}
       {error && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
           <span>{error}</span>
@@ -162,7 +148,16 @@ export default function JadwalDashboard({ apiBase = "/api/schedules", initialTru
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+            <button
+              type="button"
+              onClick={() => setModal({ open: true, initial: null })}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              {copy.addButtonLabel}
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
               {Object.entries(scheduleStatusMeta).map(([key, meta]) => (
                 <span key={key} className="flex items-center gap-1.5">
                   <span className={`h-2.5 w-4 rounded-sm ${meta.barClass}`} />
@@ -173,7 +168,6 @@ export default function JadwalDashboard({ apiBase = "/api/schedules", initialTru
                 <span className="h-1 w-4 rounded-full bg-slate-500" />
                 {copy.timeline.actualLabel}
               </span>
-            </div>
           </div>
 
           <div className="mt-4">

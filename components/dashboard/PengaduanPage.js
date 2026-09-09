@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import GlossaryText from "@/components/dashboard/GlossaryText";
 import { Search } from "lucide-react";
 import { getComplaints } from "@/lib/data";
 import { pengaduanManagementPage } from "@/lib/content";
@@ -82,16 +81,29 @@ export default function DashboardPengaduanPage({ initialTrucks = [] }) {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {pengaduanManagementPage.title}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            <GlossaryText text={pengaduanManagementPage.subtitle} />
-          </p>
+      {/* Judul + subtitle tampil di top nav (dashboardNav); filter dan pencarian sebaris. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div role="group" aria-label="Filter status" className="flex flex-wrap gap-2">
+          {pengaduanManagementPage.filters.map((filter) => {
+            const active = activeFilter === filter.key;
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => setActiveFilter(filter.key)}
+                aria-pressed={active}
+                className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-colors ${
+                  active
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
         </div>
-        <div className="relative w-full lg:w-80">
+        <div className="relative w-full lg:ml-auto lg:w-80 lg:flex-none">
           <Search
             className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
             strokeWidth={1.75}
@@ -104,29 +116,6 @@ export default function DashboardPengaduanPage({ initialTrucks = [] }) {
             className="min-h-11 w-full rounded-full border border-slate-200 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint"
           />
         </div>
-      </div>
-
-      {/* Baris filter selebar konten: enam pill muat satu baris di layar lebar,
-          membungkus di mobile. Tidak ada hitungan per filter di sini. */}
-      <div role="group" aria-label="Filter status" className="mt-6 flex flex-wrap gap-2">
-        {pengaduanManagementPage.filters.map((filter) => {
-          const active = activeFilter === filter.key;
-          return (
-            <button
-              key={filter.key}
-              type="button"
-              onClick={() => setActiveFilter(filter.key)}
-              aria-pressed={active}
-              className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-colors ${
-                active
-                  ? "bg-slate-900 text-white"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {filter.label}
-            </button>
-          );
-        })}
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">

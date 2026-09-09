@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import GlossaryText from "@/components/dashboard/GlossaryText";
 import dynamic from "next/dynamic";
 import { truckStatusMeta, petaPage } from "@/lib/content";
 
@@ -67,13 +66,7 @@ export default function PetaPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          {petaPage.title}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500"><GlossaryText text={petaPage.subtitle} /></p>
-      </div>
-
+      {/* Judul + subtitle tampil di top nav (dashboardNav), tanpa header in-page. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.8fr_1fr]">
         <div className="relative z-0 isolate h-[60vh] overflow-hidden rounded-2xl border border-slate-200 bg-white lg:h-[calc(100vh-13rem)]">
           <TruckMap

@@ -114,11 +114,13 @@ export default function AnalitikFilters({
   hasFilter,
   onReset,
   summaryText,
+  actions,
 }) {
   const copy = analitikPage.filters;
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 border-b border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div className="sticky top-0 z-20 -mx-4 -mt-6 border-b border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:-mt-8 lg:px-8">
+      {/* -mt menutup padding atas <main> (py-6 / lg:py-8) supaya bar rapat ke top nav. */}
       <div className="flex flex-wrap items-center gap-3">
         <div
           role="group"
@@ -163,6 +165,7 @@ export default function AnalitikFilters({
         <p className="ml-auto text-sm text-slate-500" aria-live="polite">
           {summaryText}
         </p>
+        {actions}
       </div>
     </div>
   );
