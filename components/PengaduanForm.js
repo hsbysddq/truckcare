@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Script from "next/script";
+import { useRef, useState } from "react";
 import { CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
 import { pengaduanPublikPage } from "@/lib/content";
 import { isValidPlate, normalizePlate } from "@/lib/format";
@@ -10,6 +11,7 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const MAKS_FOTO_BYTES = 2 * 1024 * 1024;
 const MIN_DESKRIPSI = 20;
 const BUCKET = "foto-pengaduan";
+const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 function tanggalHariIni() {
   const sekarang = new Date();
@@ -20,6 +22,9 @@ function tanggalHariIni() {
 
 export default function PengaduanForm() {
   const copy = pengaduanPublikPage;
+  const turnstileContainer = useRef(null);
+  const widgetId = useRef(null);
+  const [token, setToken] = useState("");
   const [nilai, setNilai] = useState({
     plat: "",
     tanggal: tanggalHariIni(),
@@ -31,6 +36,26 @@ export default function PengaduanForm() {
   const [memproses, setMemproses] = useState(false);
   const [pesanGalat, setPesanGalat] = useState(null);
   const [terkirim, setTerkirim] = useState(null);
+
+  // Token Turnstile single-use: reset widget setiap kali selesai dikirim
+  // (berhasil atau gagal) supaya tidak bisa dipakai ulang.
+  function renderTurnstile() {
+    if (!turnstileContainer.current || widgetId.current !== null) return;
+    widgetId.current = window.turnstile.render(turnstileContainer.current, {
+      sitekey: SITE_KEY,
+      action: "pengaduan",
+      callback: setToken,
+    });
+  }
+
+  function resetTurnstile() {
+    if (widgetId.current !== null) {
+      try {
+        window.turnstile.reset(widgetId.current);
+      } catch {}
+      setToken("");
+    }
+  }
 
   function ubah(bidang) {
     return (event) => {
@@ -73,26 +98,28 @@ export default function PengaduanForm() {
     return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${jalur}`;
   }
 
-  async function simpan(plat, tanggal, jam, deskripsi, fotoUrl) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/pengaduan`, {
+  async function simpan({ plat, tanggal, jam, deskripsi, fotoUrl, token }) {
+    const res = await fetch("/api/pengaduan", {
       method: "POST",
-      headers: {
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${SUPABASE_ANON}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         plat,
         tanggal,
-        jam: jam || null,
-        deskripsi: deskripsi.trim(),
-        foto_url: fotoUrl || null,
+        jam,
+        deskripsi,
+        foto_url: fotoUrl,
+        token,
       }),
     });
-    if (!res.ok) throw new Error("insert gagal");
-    const baris = await res.json();
-    return Array.isArray(baris) ? baris[0] : baris;
+    if (!res.ok) {
+      let msg = copy.errors.network;
+      try {
+        const d = await res.json();
+        if (d?.error) msg = d.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
   }
 
   async function handleSubmit(event) {
@@ -103,6 +130,10 @@ export default function PengaduanForm() {
       return;
     }
     if (!validasi()) return;
+    if (!token) {
+      setPesanGalat(copy.errors.captcha);
+      return;
+    }
 
     setMemproses(true);
     setPesanGalat(null);
@@ -117,17 +148,19 @@ export default function PengaduanForm() {
     }
 
     try {
-      const baris = await simpan(
-        normalizePlate(nilai.plat),
-        nilai.tanggal,
-        nilai.jam,
-        nilai.deskripsi,
-        fotoUrl
-      );
+      const baris = await simpan({
+        plat: normalizePlate(nilai.plat),
+        tanggal: nilai.tanggal,
+        jam: nilai.jam,
+        deskripsi: nilai.deskripsi,
+        fotoUrl,
+        token,
+      });
       setTerkirim(baris.id);
-    } catch {
-      setPesanGalat(copy.errors.network);
+    } catch (e) {
+      setPesanGalat(e.message ?? copy.errors.network);
     } finally {
+      resetTurnstile();
       setMemproses(false);
     }
   }
@@ -138,6 +171,7 @@ export default function PengaduanForm() {
     setGalat({});
     setPesanGalat(null);
     setTerkirim(null);
+    resetTurnstile();
   }
 
   if (terkirim) {
@@ -324,10 +358,27 @@ export default function PengaduanForm() {
           </p>
         )}
 
+        <div>
+          {SITE_KEY ? (
+            <>
+              <Script
+                src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+                strategy="afterInteractive"
+                onReady={renderTurnstile}
+              />
+              <div ref={turnstileContainer} className="cf-turnstile" />
+            </>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Captcha belum dikonfigurasi. Hubungi tim jika ini berlangsung.
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center">
           <button
             type="submit"
-            disabled={memproses}
+            disabled={memproses || !token}
             className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-cta px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cta-dark disabled:opacity-70 sm:flex-none sm:px-8"
           >
             {memproses ? (
