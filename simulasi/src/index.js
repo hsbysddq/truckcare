@@ -17,7 +17,7 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 
-const JUMLAH_TRUK = parseInt(process.env.ANTAR_JUMLAH_TRUK || '10', 10);
+const JUMLAH_TRUK = parseInt(process.env.ANTAR_JUMLAH_TRUK || '15', 10);
 const INTERVAL_DETIK = parseFloat(process.env.ANTAR_INTERVAL_DETIK || '3');
 const KECEPATAN_KMJ = parseFloat(process.env.ANTAR_KECEPATAN_KMJ || '45');
 // skala: 1 menit perjalanan = 1 detik nyata
@@ -50,11 +50,24 @@ function kmPerMenit() {
 }
 
 async function initTrips() {
+  // 1 truk = 1 driver dinas (shift). Dari semua driver yang ada, 15 pertama
+  // dipakai untuk 15 truk; sisanya libur sehingga tidak punya trip berjalan
+  // dan otomatis tidak muncul di detail truk / konteks AI / telegram.
+  const { data: drv, error: errDrv } = await supabase
+    .from('drivers')
+    .select('id')
+    .order('nama', { ascending: true })
+    .limit(100);
+  if (errDrv) throw errDrv;
+  const driverPool = drv || [];
+
   // Buat/sambungkan trips di awal. Untuk MVP: upsert per plat supaya id stabil.
   // Nama deterministik Truk 1..N ikut urutan RUTE (sama dengan seed.sql).
   let nomor = 1;
+  let urutan = 0;
   for (const [plat, st] of trukState) {
     const nama = `Truk ${nomor++}`;
+    st.driverId = driverPool[urutan++]?.id ?? null;
     // ignoreDuplicates: nama seed tidak ditimpa tiap run.
     // (upsert yang diabaikan tidak mengembalikan baris, jadi select terpisah)
     {
@@ -83,7 +96,14 @@ async function initTrips() {
 
     st.trukId = truk.id;
     if (tripAda) {
+      // Reuse trip yang masih berjalan, tapi pastikan driver dinas diisi
+      // (trip akumulasi dari simulasi lama sering kosong driver_id-nya).
       st.tripId = tripAda.id;
+      const { error: errDrv } = await supabase
+        .from('trips')
+        .update({ driver_id: st.driverId })
+        .eq('id', tripAda.id);
+      if (errDrv) throw errDrv;
     } else {
       await buatTripBaru(st);
     }
@@ -93,18 +113,20 @@ async function initTrips() {
 // Selesaikan trip lama dan langsung mulai trip baru supaya simulasi jalan
 // terus. Tanpa ini proses exit saat semua tiba lalu systemd me-restart dari
 // menit 0 = semua truk teleport balik ke titik awal tiap ~90 detik.
+// Tutup SEMUA trip berjalan truk itu (bukan cuma trip aktif terakhir) supaya
+// restart berulang tidak menumpuk puluhan trip 'berjalan'.
 async function buatTripBaru(st) {
-  if (st.tripId) {
-    const { error: errTutup } = await supabase
-      .from('trips')
-      .update({ status: 'selesai', selesai: new Date().toISOString() })
-      .eq('id', st.tripId);
-    if (errTutup) throw errTutup;
-  }
+  const { error: errTutup } = await supabase
+    .from('trips')
+    .update({ status: 'selesai', selesai: new Date().toISOString() })
+    .eq('truk_id', st.trukId)
+    .eq('status', 'berjalan');
+  if (errTutup) throw errTutup;
   const { data, error: errTrip } = await supabase
     .from('trips')
     .insert({
       truk_id: st.trukId,
+      driver_id: st.driverId,
       asal: st.rute.asal,
       tujuan: st.rute.tujuan,
       waypoints: st.rute.waypoints,
