@@ -8,17 +8,36 @@ Output: baris pertama `VALID` / `DITOLAK`, baris berikutnya alasan.
 Aturan: plat tidak dikenal → DITOLAK. Berhenti lama (status berhenti) di jam laporan → VALID.
 Tak ada anomali → VALID. Data tak tersedia → VALID dengan catatan.
 """
+
 import argparse
+import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from inti import supabase_get
+
+
+def _log(msg, **kw):
+    print(
+        json.dumps(
+            {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "level": "INFO",
+                "msg": msg,
+                **kw,
+            },
+            ensure_ascii=False,
+        ),
+        file=sys.stderr,
+    )
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pengaduan-id", required=True)
     args = ap.parse_args()
+
+    _log("validasi mulai", pengaduan_id=args.pengaduan_id)
 
     # ambil pengaduan
     rows = supabase_get("pengaduan", f"select=*&id=eq.{args.pengaduan_id}")
@@ -69,7 +88,9 @@ def main():
         "events",
         f"select=jenis,pesan,ts&truk_id=eq.{truk['id']}&order=ts.desc&limit=10",
     )
-    if events and any(e.get("jenis") in ("berhenti_lama", "penyimpangan") for e in events):
+    if events and any(
+        e.get("jenis") in ("berhenti_lama", "penyimpangan") for e in events
+    ):
         print("VALID")
         print(
             f"Truk {p.get('plat')} punya peristiwa {events[0].get('jenis')} baru-baru ini. "

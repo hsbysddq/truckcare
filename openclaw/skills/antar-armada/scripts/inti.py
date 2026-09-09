@@ -1,12 +1,15 @@
 """Utilitas bersama untuk skill OpenClaw Antar — koneksi Supabase + hitung ETA.
 
 Angka dihitung deterministik dari data, bukan dari LLM.
+Retry logic untuk transient errors, in-memory cache untuk posisi.
 """
 
-import os
-import urllib.request
 import json
 import math
+import os
+import sys
+import time
+import urllib.request
 from datetime import datetime, timezone
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -17,15 +20,40 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
+# In-memory cache: posisi berubah tiap ~3 detik, cache 8 detik cukup
+_cache: dict = {}
+_CACHE_TTL = float(os.environ.get("CACHE_TTL", "8"))
 
-def supabase_get(tabel: str, params: str = "") -> list:
-    """GET ke Supabase REST; kembalikan list row."""
+
+def _now():
+    return time.monotonic()
+
+
+def supabase_get(tabel: str, params: str = "", use_cache: bool = False) -> list:
+    """GET ke Supabase REST; kembalikan list row. Retry 1x pada transient error."""
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY belum di-set")
+
+    cache_key = f"{tabel}?{params}"
+    if use_cache and cache_key in _cache:
+        ts, data = _cache[cache_key]
+        if _now() - ts < _CACHE_TTL:
+            return data
+
     url = f"{SUPABASE_URL}/rest/v1/{tabel}?{params}"
     req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read().decode())
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                data = json.loads(r.read().decode())
+            if use_cache:
+                _cache[cache_key] = (_now(), data)
+            return data
+        except Exception:
+            if attempt == 0:
+                time.sleep(0.3 * (attempt + 1))
+                continue
+            raise
 
 
 def haversine_km(a_lat, a_lon, b_lat, b_lon) -> float:
@@ -39,8 +67,10 @@ def haversine_km(a_lat, a_lon, b_lat, b_lon) -> float:
 
 
 def posisi_terbaru_per_truk(limit: int = 200) -> dict:
-    """Posisi terbaru per truk, dari tabel positions."""
-    rows = supabase_get("positions", f"select=*&order=ts.desc&limit={limit}")
+    """Posisi terbaru per truk, dari tabel positions. Cache 8 detik."""
+    rows = supabase_get(
+        "positions", f"select=*&order=ts.desc&limit={limit}", use_cache=True
+    )
     terbaru: dict = {}
     for r in rows:
         if r["truk_id"] not in terbaru:
@@ -60,27 +90,21 @@ def truk_by_id() -> dict:
 
 
 def hitung_eta(trip, posisi) -> dict:
-    """ETA deterministik: sisa jarak waypoint ÷ kecepatan rata-rata + toleransi berhenti."""
+    """ETA deterministik: sisa jarak waypoint / kecepatan rata-rata + toleransi berhenti."""
     mentah = trip.get("waypoints") or []
-    # Normalisasi: simulasi lama menyimpan [lat, lon, label, tiba_menit], baru objek.
     wp = [{"lat": w[0], "lon": w[1]} if isinstance(w, list) else w for w in mentah]
     if not wp or not posisi:
         return {"eta_menit": None, "progres": None}
 
-    # posisi sekarang (lat/lon)
     lat, lon = posisi["lat"], posisi["lon"]
-    # jarak ke tiap waypoint
     jarak_ke_wp = [(w, haversine_km(lat, lon, w["lat"], w["lon"])) for w in wp]
-    # waypoint terdekat yang belum dilewati (pilih yang jaraknya masuk akal)
     target = min(jarak_ke_wp, key=lambda x: x[1])
     jarak_sisa = target[1]
-    # kecepatan rata-rata 15 menit dari posisi terakhir (km/jam); fallback 40
     kecepatan = posisi.get("kecepatan") or 0
     if kecepatan < 5:
         kecepatan = 40
     eta_menit = (jarak_sisa / kecepatan) * 60 if kecepatan > 0 else None
 
-    # progres kasar: jarak dari waypoint pertama
     total = sum(
         haversine_km(wp[i]["lat"], wp[i]["lon"], wp[i + 1]["lat"], wp[i + 1]["lon"])
         for i in range(len(wp) - 1)
@@ -91,3 +115,9 @@ def hitung_eta(trip, posisi) -> dict:
         "eta_menit": round(eta_menit) if eta_menit else None,
         "progres": round(progres * 100),
     }
+
+
+def jumlah_truk() -> int:
+    """Query ringan: hitung total truk tanpa fetch semua data."""
+    rows = supabase_get("trucks", "select=id")
+    return len(rows)
