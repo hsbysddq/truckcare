@@ -115,7 +115,7 @@ function jawabanSolar() {
 async function jawabanSolarAsync() {
   let source = null;
   try {
-    source = await getAnalyticsSourceLive();
+    source = await getAnalyticsSourceLive({ rangeDays: 30 });
   } catch {
     source = getAnalyticsSource(await getActiveTrucks());
   }

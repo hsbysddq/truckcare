@@ -6,8 +6,10 @@ import { getTruckHistory } from "@/lib/data";
 import { getActiveTrucks } from "@/lib/trucks";
 import { truckDetailPage, truckStatusMeta } from "@/lib/content";
 import TruckRouteMapLoader from "@/components/dashboard/armada/TruckRouteMapLoader";
-import TruckSpeedChart from "@/components/dashboard/armada/TruckSpeedChart";
-import TruckFuelChart from "@/components/dashboard/armada/TruckFuelChart";
+import {
+  TruckSpeedChartLoader as TruckSpeedChart,
+  TruckFuelChartLoader as TruckFuelChart,
+} from "@/components/dashboard/armada/TruckChartsLoader";
 
 // Truk live dari Supabase kalau id-nya ada di sana; selain itu pakai dummy.
 async function muatTruk(id) {

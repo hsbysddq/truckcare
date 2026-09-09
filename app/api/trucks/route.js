@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getActiveTrucks } from "@/lib/trucks";
 import { listSchedules } from "@/lib/schedule-store";
-import { loadDrivers } from "@/lib/driver-data";
+import { loadDrivers, jendelaJadwalAktif } from "@/lib/driver-data";
 import { attachCurrentDrivers } from "@/lib/driver-status";
 
 // Jangan di-prerender saat build: peta butuh posisi terbaru tiap request.
@@ -15,7 +15,8 @@ export async function GET() {
     // Best-effort: pengemudi yang sedang membawa truk (dari jadwal aktif)
     // supaya nama pengemudi di Overview/Jadwal bisa ditautkan.
     try {
-      const [schedules, drivers] = await Promise.all([listSchedules(), loadDrivers()]);
+      // Hanya jadwal yang mungkin sedang berlangsung, bukan seluruh tabel.
+      const [schedules, drivers] = await Promise.all([listSchedules(jendelaJadwalAktif()), loadDrivers()]);
       trucks = attachCurrentDrivers(trucks, schedules, new Map(drivers.map((d) => [d.id, d])));
     } catch {
       // Tanpa jadwal: shape truk apa adanya.
