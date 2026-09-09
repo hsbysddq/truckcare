@@ -1,4 +1,8 @@
 // Bersihkan laporan uji coba dari tabel pengaduan di Supabase.
+// Penghapusan memakai SOFT DELETE (isi deleted_at + delete_reason, lihat
+// supabase/pengaduan-keputusan.sql) supaya tetap bisa diaudit/dipulihkan.
+// Contoh yang tertangkap: deskripsi "wefasdfasdfrwerawerawerasdf",
+// plat "L 9012D" dan "W 4734 D".
 //
 // Yang dianggap uji coba:
 //   1. plat tidak memenuhi format Indonesia (mis. "L 9012D")
@@ -51,7 +55,7 @@ async function main() {
   const apply = process.argv.includes("--apply");
   const headers = { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
-  const res = await fetch(`${URL}/rest/v1/pengaduan?select=id,plat,deskripsi,status,created_at&order=created_at.desc&limit=1000`, { headers });
+  const res = await fetch(`${URL}/rest/v1/pengaduan?select=id,plat,deskripsi,status,created_at&deleted_at=is.null&order=created_at.desc&limit=1000`, { headers });
   if (!res.ok) throw new Error(`GET pengaduan gagal: ${res.status}`);
   const rows = await res.json();
 
@@ -81,8 +85,15 @@ async function main() {
   }
 
   for (const h of hapus) {
-    const del = await fetch(`${URL}/rest/v1/pengaduan?id=eq.${h.id}`, { method: "DELETE", headers });
-    console.log(del.ok ? `hapus ${h.id}: ok` : `hapus ${h.id}: GAGAL ${del.status}`);
+    const del = await fetch(`${URL}/rest/v1/pengaduan?id=eq.${h.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        deleted_at: new Date().toISOString(),
+        delete_reason: `Data uji coba (script clean-test-data): ${h.alasan}`,
+      }),
+    });
+    console.log(del.ok ? `soft-delete ${h.id}: ok` : `soft-delete ${h.id}: GAGAL ${del.status}`);
   }
   for (const p of perbaiki) {
     const patch = await fetch(`${URL}/rest/v1/pengaduan?id=eq.${p.id}`, {

@@ -36,7 +36,8 @@ export default function DashboardPengaduanPage() {
 
   useEffect(() => {
     let batal = false;
-    fetch("/api/complaints", { cache: "no-store" })
+    // deleted=all: baris soft-delete ikut dimuat untuk filter "Terhapus".
+    fetch("/api/complaints?deleted=all", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         // API valid (bahkan kosong) selalu dipercaya; dummy cuma kalau gagal.
@@ -56,8 +57,11 @@ export default function DashboardPengaduanPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return complaints.filter((complaint) => {
+      const terhapus = Boolean(complaint.deletedAt);
       const matchesFilter =
-        activeFilter === "semua" || complaint.status === activeFilter;
+        activeFilter === "terhapus"
+          ? terhapus
+          : !terhapus && (activeFilter === "semua" || complaint.status === activeFilter);
       const matchesQuery =
         q === "" ||
         complaint.id.toLowerCase().includes(q) ||
@@ -70,9 +74,12 @@ export default function DashboardPengaduanPage() {
 
   const selected = complaints.find((c) => c.id === selectedId) ?? complaints[0] ?? null;
 
-  function handleStatusChange(id, status) {
+  // Pembaruan parsial dari panel detail (status/keputusan, catatan, soft
+  // delete/pulihkan) langsung diterapkan tanpa reload.
+  function handleStatusChange(id, patch) {
+    const perubahan = typeof patch === "string" ? { status: patch } : patch;
     setComplaints((sebelum) =>
-      sebelum.map((c) => (c.id === id ? { ...c, status } : c))
+      sebelum.map((c) => (c.id === id ? { ...c, ...perubahan } : c))
     );
   }
 

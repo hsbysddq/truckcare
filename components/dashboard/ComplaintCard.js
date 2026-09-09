@@ -59,11 +59,17 @@ export default function ComplaintCard({ complaint, active, onSelect }) {
                 {copy.aiBadgePrefix}: {confidence.label}
               </span>
             )}
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${status.badgeClass}`}
-            >
-              {status.label}
-            </span>
+            {complaint.deletedAt ? (
+              <span className="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 line-through">
+                {copy.deletedBadgeLabel}
+              </span>
+            ) : (
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${status.badgeClass}`}
+              >
+                {status.label}
+              </span>
+            )}
           </div>
         </div>
       </div>
