@@ -419,7 +419,7 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
                 <img
                   src={complaint.foto_url}
                   alt="Lampiran laporan"
-                  className="h-auto w-full object-contain"
+                  className="mx-auto h-64 w-auto max-w-full object-contain"
                   loading="lazy"
                 />
               </a>
