@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle, Pencil } from "lucide-react";
 import { jadwalPage, scheduleStatusMeta } from "@/lib/content";
 import {
@@ -34,7 +35,20 @@ export default function ScheduleDetailPanel({ schedule, findings, onEdit }) {
   const rows = [
     { label: copy.routeLabel, value: `${schedule.origin} → ${schedule.destination}` },
     { label: copy.truckLabel, value: `${schedule.plate_number ?? "-"}${schedule.truck_name ? ` · ${schedule.truck_name}` : ""}` },
-    { label: copy.driverLabel, value: schedule.driver_name ?? "-" },
+    {
+      label: copy.driverLabel,
+      value:
+        schedule.driver_id && schedule.driver_name ? (
+          <Link
+            href={`/dashboard/pengemudi/${encodeURIComponent(schedule.driver_id)}`}
+            className="underline-offset-2 hover:text-accent hover:underline"
+          >
+            {schedule.driver_name}
+          </Link>
+        ) : (
+          schedule.driver_name ?? "-"
+        ),
+    },
     { label: copy.cargoLabel, value: schedule.cargo_type ?? "-" },
   ];
   const times = [

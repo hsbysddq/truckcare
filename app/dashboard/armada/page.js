@@ -1,5 +1,8 @@
 import { getTrucks } from "@/lib/data";
 import { getTrucksShape } from "@/lib/supabase";
+import { listSchedules } from "@/lib/schedule-store";
+import { loadDrivers } from "@/lib/driver-data";
+import { attachCurrentDrivers } from "@/lib/driver-status";
 import { armadaPage, dashboardTitle } from "@/lib/content";
 import ArmadaCard from "@/components/dashboard/ArmadaCard";
 
@@ -7,10 +10,18 @@ export const metadata = { title: dashboardTitle("/dashboard/armada") };
 
 // Server: baca Supabase langsung, gagal (env kosong / offline) pakai dummy.
 async function muatTruk() {
+  let trucks;
   try {
-    return await getTrucksShape();
+    trucks = await getTrucksShape();
   } catch {
-    return getTrucks();
+    trucks = getTrucks();
+  }
+  // Pengemudi yang sedang membawa truk diambil dari jadwal aktif.
+  try {
+    const [schedules, drivers] = await Promise.all([listSchedules(), loadDrivers()]);
+    return attachCurrentDrivers(trucks, schedules, new Map(drivers.map((d) => [d.id, d])));
+  } catch {
+    return trucks;
   }
 }
 

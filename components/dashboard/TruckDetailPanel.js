@@ -55,7 +55,16 @@ export default function TruckDetailPanel({ truck, history }) {
         <div>
           <dt className="text-slate-400">{detailPanel.driverLabel}</dt>
           <dd className="mt-1 font-medium text-slate-900">
-            {truck.driverName ?? "-"}
+            {truck.driverId && truck.driverName ? (
+              <Link
+                href={`/dashboard/pengemudi/${encodeURIComponent(truck.driverId)}`}
+                className="underline-offset-2 hover:text-accent hover:underline"
+              >
+                {truck.driverName}
+              </Link>
+            ) : (
+              truck.driverName ?? "-"
+            )}
           </dd>
         </div>
         <div>

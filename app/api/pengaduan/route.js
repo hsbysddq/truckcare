@@ -74,6 +74,9 @@ export async function POST(req) {
   const jam = typeof body.jam === "string" && body.jam ? body.jam : null;
   const deskripsi = typeof body.deskripsi === "string" ? body.deskripsi.trim() : "";
   const fotoUrl = typeof body.foto_url === "string" && body.foto_url ? body.foto_url : null;
+  // Satu-satunya status yang boleh ditentukan klien: plat tidak terdaftar
+  // (hasil /api/check-plate). Nilai lain diabaikan, default DB "menunggu".
+  const status = body.status === "luar_armada" ? "luar_armada" : null;
 
   if (!isValidPlate(plat) || !tanggal || deskripsi.length < MIN_DESKRIPSI) {
     return NextResponse.json({ error: "Data tidak lengkap." }, { status: 400 });
@@ -86,6 +89,7 @@ export async function POST(req) {
       jam,
       deskripsi,
       foto_url: fotoUrl,
+      ...(status ? { status } : {}),
     });
     const baris = Array.isArray(rows) ? rows[0] : rows;
     return NextResponse.json({ id: baris?.id ?? null });

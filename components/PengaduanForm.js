@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
 import { pengaduanPublikPage } from "@/lib/content";
 import { formatPlateInput, isValidPlate, normalizePlate } from "@/lib/format";
 
@@ -10,6 +10,29 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const MAKS_FOTO_BYTES = 2 * 1024 * 1024;
 const MIN_DESKRIPSI = 20;
 const BUCKET = "foto-pengaduan";
+const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+const JEDA_CEK_PLAT_MS = 600;
+// Status DB untuk laporan yang platnya tidak terdaftar (lihat
+// supabase/pengaduan-luar-armada.sql). Tidak memblokir pengiriman.
+const STATUS_LUAR_ARMADA = "luar_armada";
+
+// Tanya server apakah plat terdaftar. Jawaban hanya { found } tanpa detail.
+// null = tidak diketahui (jaringan/rate limit), jangan dianggap "tidak ada".
+async function cekPlatKeServer(plat, signal) {
+  try {
+    const res = await fetch("/api/check-plate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plate: plat }),
+      signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.found === "boolean" ? data.found : null;
+  } catch {
+    return null;
+  }
+}
 
 function tanggalHariIni() {
   const sekarang = new Date();
@@ -34,6 +57,28 @@ export default function PengaduanForm() {
   const [memproses, setMemproses] = useState(false);
   const [pesanGalat, setPesanGalat] = useState(null);
   const [terkirim, setTerkirim] = useState(null);
+  // idle | invalid | checking | found | notFound | unknown
+  const [cekPlat, setCekPlat] = useState("idle");
+
+  // Token Turnstile single-use: reset widget setiap kali selesai dikirim
+  // (berhasil atau gagal) supaya tidak bisa dipakai ulang.
+  function renderTurnstile() {
+    if (!turnstileContainer.current || widgetId.current !== null) return;
+    widgetId.current = window.turnstile.render(turnstileContainer.current, {
+      sitekey: SITE_KEY,
+      action: "pengaduan",
+      callback: setToken,
+    });
+  }
+
+  function resetTurnstile() {
+    if (widgetId.current !== null) {
+      try {
+        window.turnstile.reset(widgetId.current);
+      } catch {}
+      setToken("");
+    }
+  }
 
   function ubah(bidang) {
     return (event) => {
@@ -106,16 +151,20 @@ export default function PengaduanForm() {
     return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${jalur}`;
   }
 
-  async function simpan(plat, tanggal, jam, deskripsi, fotoUrl) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/pengaduan`, {
+  // Insert lewat /api/pengaduan (verifikasi Turnstile + service role di
+  // server). status hanya diisi "luar_armada" bila plat tidak terdaftar.
+  async function simpan(plat, tanggal, jam, deskripsi, fotoUrl, status) {
+    const res = await fetch("/api/pengaduan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        token,
         plat,
         tanggal,
         jam: jam || null,
         deskripsi: deskripsi.trim(),
         foto_url: fotoUrl || null,
+        ...(status ? { status } : {}),
       }),
     });
     if (!res.ok) {
@@ -168,11 +217,12 @@ export default function PengaduanForm() {
         nilai.tanggal,
         nilai.jam,
         nilai.deskripsi,
-        fotoUrl
+        fotoUrl,
+        statusAwal
       );
-      setTerkirim(baris.id);
-    } catch {
-      setPesanGalat(copy.errors.network);
+      setTerkirim({ id: baris.id, luarArmada: statusAwal === STATUS_LUAR_ARMADA });
+    } catch (e) {
+      setPesanGalat(e?.message || copy.errors.network);
     } finally {
       resetTurnstile();
       setMemproses(false);
@@ -185,6 +235,7 @@ export default function PengaduanForm() {
     setGalat({});
     setPesanGalat(null);
     setTerkirim(null);
+    setCekPlat("idle");
   }
 
   if (terkirim) {

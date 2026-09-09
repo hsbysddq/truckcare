@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Route, Gauge } from "lucide-react";
+import { Route, Gauge, User } from "lucide-react";
 import { armadaPage, tripStatusMeta } from "@/lib/content";
 
 export default function ArmadaCard({ name, truck }) {
@@ -38,6 +38,23 @@ export default function ArmadaCard({ name, truck }) {
         <Route className="h-4 w-4 flex-none text-slate-400" strokeWidth={1.75} />
         <span className="truncate">{route}</span>
       </div>
+
+      {truck.driverName && (
+        <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+          <User className="h-4 w-4 flex-none text-slate-400" strokeWidth={1.75} />
+          <span className="sr-only">{armadaPage.driverLabel}: </span>
+          {truck.driverId ? (
+            <Link
+              href={`/dashboard/pengemudi/${encodeURIComponent(truck.driverId)}`}
+              className="truncate font-medium text-slate-700 underline-offset-2 hover:text-accent hover:underline"
+            >
+              {truck.driverName}
+            </Link>
+          ) : (
+            <span className="truncate">{truck.driverName}</span>
+          )}
+        </div>
+      )}
 
       <div className="mt-4">
         <div className="flex items-center justify-between text-xs text-slate-500">

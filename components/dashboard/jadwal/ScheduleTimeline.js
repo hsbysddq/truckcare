@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { jadwalPage, scheduleStatusMeta } from "@/lib/content";
 import { formatTime, formatDateShort } from "@/lib/schedule-analysis";
 
@@ -94,9 +95,18 @@ export default function ScheduleTimeline({
                 <span className="font-mono text-sm font-semibold text-slate-900">
                   {truck.plateNumber}
                 </span>
-                <span className="truncate text-[11px] text-slate-500">
-                  {truck.driverName ?? truck.nama ?? ""}
-                </span>
+                {truck.driverId && truck.driverName ? (
+                  <Link
+                    href={`/dashboard/pengemudi/${encodeURIComponent(truck.driverId)}`}
+                    className="truncate text-[11px] text-slate-500 underline-offset-2 hover:text-accent hover:underline"
+                  >
+                    {truck.driverName}
+                  </Link>
+                ) : (
+                  <span className="truncate text-[11px] text-slate-500">
+                    {truck.driverName ?? truck.nama ?? ""}
+                  </span>
+                )}
               </div>
               <div className="relative flex-1" style={{ height: ROW_H }}>
                 {ticks.map((tick) => (
