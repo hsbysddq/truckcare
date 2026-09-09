@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape } from "@/lib/supabase";
+import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, getTrucksShape, ambilRiwayatChat } from "@/lib/supabase";
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
@@ -21,6 +21,87 @@ const POLA_JADWAL = /\b(jadwal|penyimpangan|deviasi|terlambat|bergerak tanpa)\b/
 const POLA_PENGADUAN = /pengaduan|keluhan|laporan/i;
 const POLA_JUMLAH = /\b(total|jumlah|berapa|diterima|masuk|statistik)\b/i;
 const POLA_PENDING = /belum|divalidasi|pending|menunggu/i;
+
+// Tool lokal agent: "status_armada". Ringkasan + daftar per truk dari
+// shape yang sama dengan halaman Armada (bebas OpenClaw).
+const POLA_ARMADA = /status armada|posisi armada|posisi (semua )?truk/i;
+
+async function jawabanStatusArmada() {
+  try {
+    const trucks = await getTrucksShape();
+    if (!trucks?.length) return { text: "Belum ada data armada.", total: 0 };
+    const jalan = trucks.filter((t) => (t.tripStatus ?? t.status) === "jalan").length;
+    const berhenti = trucks.length - jalan;
+    const baris = trucks.map((t) => {
+      const st = t.tripStatus ?? t.status ?? "-";
+      const kec = Math.round(Number(t.speedKph) || 0);
+      const tujuan = t.destination ? ` → ${t.destination}` : "";
+      return `• ${t.nama} (${t.plateNumber}): ${st}, ${kec} km/jam${tujuan}`;
+    });
+    // Kartu terstruktur untuk bubble chat (teks lengkap tetap dikirim
+    // sebagai fallback riwayat, karena dataCard tak disimpan di chat_logs).
+    const kartu = {
+      title: `Status armada (${trucks.length}): ${jalan} jalan, ${berhenti} berhenti`,
+      rows: trucks.map((t) => {
+        const st = t.tripStatus ?? t.status ?? "-";
+        const kec = Math.round(Number(t.speedKph) || 0);
+        const tujuan = t.destination ? ` → ${t.destination}` : "";
+        return {
+          label: `${t.nama} (${t.plateNumber})${tujuan}`,
+          badge: {
+            tone: st === "jalan" ? "success" : "warning",
+            label: `${st} · ${kec} km/jam`,
+          },
+        };
+      }),
+    };
+    return {
+      text: `Status armada (${trucks.length}): ${jalan} jalan, ${berhenti} berhenti.\n${baris.join("\n")}`,
+      total: trucks.length,
+      dataCard: kartu,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Tool lokal agent: "driver_truk". Menjawab siapa pengemudi bertugas.
+// Plat diambil eksplisit dari pesan, atau dari konteks: pesan-pesan
+// terakhir ("truck itu") lalu konteks truk aktif (?truk=PLAT).
+const POLA_DRIVER = /driver|sopir|pengemudi|yang (bawa|membawa|mengendarai|mengemudi)/i;
+const POLA_PLAT = /\b([A-Z]{1,2}\s?\d{1,4}\s?[A-Z]{1,3})\b/;
+const kunciPlatLokal = (s) => String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+async function jawabanDriver(pesan, userId, trukKonteks) {
+  let plat = (pesan.match(POLA_PLAT)?.[1] ?? "").toUpperCase().replace(/\s+/g, " ").trim() || null;
+  if (!plat) {
+    try {
+      const riwayat = await ambilRiwayatChat(userId);
+      const terakhir = (riwayat || []).slice(-6).reverse();
+      for (const m of terakhir) {
+        const cocok = String(m?.text ?? "").match(POLA_PLAT)?.[1];
+        if (cocok) {
+          plat = cocok.toUpperCase().replace(/\s+/g, " ").trim();
+          break;
+        }
+      }
+    } catch {}
+  }
+  if (!plat) plat = trukKonteks || null;
+  if (!plat) return null;
+  try {
+    const trucks = await getTrucksShape();
+    const t = (trucks || []).find((x) => kunciPlatLokal(x.plateNumber) === kunciPlatLokal(plat));
+    if (!t) return { text: `Plat ${plat} tidak terdaftar di armada.`, total: 0 };
+    if (t.driverName) {
+      const tujuan = t.destination ? ` menuju ${t.destination}` : "";
+      return { text: `Pengemudi ${t.nama} (${t.plateNumber}) yang bertugas: ${t.driverName}${tujuan}.`, total: 1 };
+    }
+    return { text: `${t.nama} (${t.plateNumber}): belum ada driver bertugas tercatat.`, total: 1 };
+  } catch {
+    return null;
+  }
+}
 
 // Tool lokal agent: "cek_anomali_solar". Jawaban deterministik dari modul
 // analitik yang sama dengan halaman Analitik (insight fuelByTruck).
@@ -110,6 +191,42 @@ export async function POST(req) {
   // Konteks tambahan untuk agent: statistik pengaduan (best-effort).
   const stPengaduan = await statistikPengaduan().catch(() => null);
   if (stPengaduan) konteks.pengaduan = stPengaduan;
+
+  // Tool status armada deterministik (bebas OpenClaw).
+  if (POLA_ARMADA.test(pesan)) {
+    const hasil = await jawabanStatusArmada();
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        ...(hasil.dataCard ? { dataCard: hasil.dataCard } : {}),
+        toolTrace: {
+          label: "Memanggil status_armada",
+          command: "status_armada()",
+          result: { total: hasil.total },
+        },
+      });
+    }
+  }
+
+  // Tool driver truk deterministik (bebas OpenClaw). Menangani juga
+  // pertanyaan lanjutan ("truck itu") via riwayat + konteks truk aktif.
+  if (POLA_DRIVER.test(pesan)) {
+    const hasil = await jawabanDriver(pesan, user.id, truk);
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        toolTrace: {
+          label: "Memanggil driver_truk",
+          command: "driver_truk()",
+          result: { total: hasil.total },
+        },
+      });
+    }
+  }
 
   // Tool anomali solar deterministik (bebas OpenClaw).
   if (POLA_SOLAR.test(pesan)) {
