@@ -81,6 +81,21 @@ export default function PengaduanForm() {
     }
   }
 
+  // Widget Turnstile melekat pada node DOM-nya. Kalau halaman dibongkar tanpa
+  // turnstile.remove() (navigasi, pindah tab log setelah terkirim), Cloudflare
+  // mengeluh "Cannot find Widget" di console dan sisa widget bisa macet saat
+  // formulir dibuka lagi.
+  useEffect(() => {
+    return () => {
+      if (widgetId.current !== null) {
+        try {
+          window.turnstile?.remove(widgetId.current);
+        } catch {}
+        widgetId.current = null;
+      }
+    };
+  }, []);
+
   function ubah(bidang) {
     return (event) => {
       const mentah = event.target.value;

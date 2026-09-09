@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 import { Eye, EyeOff } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginPage } from "@/lib/content";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -42,6 +42,21 @@ export default function LoginForm() {
       setToken("");
     }
   }
+
+  // Widget Turnstile melekat pada node DOM-nya. Kalau komponen dibongkar
+  // (navigasi ke dashboard setelah login sukses) tanpa turnstile.remove(),
+  // Cloudflare mengeluh "Cannot find Widget" di console dan sisa widget bisa
+  // macet saat halaman login dibuka lagi.
+  useEffect(() => {
+    return () => {
+      if (widgetId.current !== null) {
+        try {
+          window.turnstile?.remove(widgetId.current);
+        } catch {}
+        widgetId.current = null;
+      }
+    };
+  }, []);
 
   // Gate Turnstile sebelum signInWithPassword. Gagal = blokir login.
   async function cekCaptcha() {

@@ -25,12 +25,15 @@ function log(level, msg, extra = {}) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), level, msg, ...extra }));
 }
 
-// Rate limiting: max 10 request per menit per chat ID
-const RATE_LIMIT = parseInt(process.env.TELEGRAM_RATE_LIMIT || '10', 10);
+// Rate limiting: max N request per menit per chat ID. Pemilik (TELEGRAM_CHAT_ID)
+// tidak pernah dibatasi — dia orang yang paling sering bertanya dan paling
+// dipercaya; limit hanya menahan chat yang memborbardir.
+const RATE_LIMIT = parseInt(process.env.TELEGRAM_RATE_LIMIT || '30', 10);
 const RATE_WINDOW_MS = 60_000;
 const rateBuckets = new Map();
 
 function isRateLimited(chatId) {
+  if (ownerChat && String(chatId) === String(ownerChat)) return false;
   const now = Date.now();
   const bucket = rateBuckets.get(chatId);
   if (!bucket || now - bucket.start > RATE_WINDOW_MS) {
