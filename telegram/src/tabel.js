@@ -1,7 +1,11 @@
 // Format tabel monospace untuk pesan Telegram — Telegram tidak merender
 // tabel HTML, jadi pakai blok <pre> dengan kolom rata padding spasi.
+// Dua varian: polos (fallback saat parse HTML gagal) dan HTML (kolom Peta
+// jadi link Google Maps yang bisa diklik).
 // Murni (tanpa side effect) supaya bisa diuji: node --test / node assert.
-const LEBAR = { truk: 8, plat: 11, status: 8, tujuan: 11, kec: 3 };
+const LEBAR = { truk: 8, plat: 11, status: 8, tujuan: 11, kec: 3, peta: 14 };
+
+export const URL_MAPS = (lat, lon) => `https://www.google.com/maps?q=${lat},${lon}`;
 
 function sel(teks, lebar, rata = "kiri") {
   const t = String(teks ?? "-");
@@ -16,16 +20,48 @@ export function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
-// baris: [{ nama, plat, status, tujuan, kec }] → string tabel polos.
-export function formatTabelArmada(baris) {
-  const kepala =
+function koordinat(b) {
+  if (b?.lat == null || b?.lon == null) return "-";
+  return `${Number(b.lat).toFixed(3)},${Number(b.lon).toFixed(3)}`;
+}
+
+function kepala() {
+  return (
     `${sel("Truk", LEBAR.truk)} ${sel("Plat", LEBAR.plat)} ` +
-    `${sel("Status", LEBAR.status)} ${sel("Tujuan", LEBAR.tujuan)} ${sel("Kec", LEBAR.kec, "kanan")}`;
-  const garis = "-".repeat(kepala.length);
+    `${sel("Status", LEBAR.status)} ${sel("Tujuan", LEBAR.tujuan)} ` +
+    `${sel("Kec", LEBAR.kec, "kanan")} ${sel("Peta", LEBAR.peta)}`
+  );
+}
+
+const garis = (k) => "-".repeat(k.length);
+
+// baris: [{ nama, plat, status, tujuan, kec, lat, lon }] → string tabel polos.
+// Kolom Peta berisi koordinat agar tetap berguna walau tak bisa diklik.
+export function formatTabelArmada(baris) {
+  const k = kepala();
   const isi = (baris ?? []).map(
     (b) =>
       `${sel(b.nama, LEBAR.truk)} ${sel(b.plat, LEBAR.plat)} ` +
-      `${sel(b.status, LEBAR.status)} ${sel(b.tujuan, LEBAR.tujuan)} ${sel(b.kec, LEBAR.kec, "kanan")}`
+      `${sel(b.status, LEBAR.status)} ${sel(b.tujuan, LEBAR.tujuan)} ` +
+      `${sel(b.kec, LEBAR.kec, "kanan")} ${sel(koordinat(b), LEBAR.peta)}`
   );
-  return [kepala, garis, ...isi].join("\n");
+  return [k, garis(k), ...isi].join("\n");
+}
+
+// Versi HTML: teks sel di-escape, kolom Peta jadi link yang bisa diklik.
+// Padding dihitung dari teks asli supaya kolom tetap rata di render monospace.
+export function formatTabelArmadaHtml(baris) {
+  const k = kepala();
+  const isi = (baris ?? []).map((b) => {
+    const link =
+      b?.lat != null && b?.lon != null
+        ? `<a href="${URL_MAPS(b.lat, b.lon)}">${escapeHtml(sel("buka", LEBAR.peta))}</a>`
+        : escapeHtml(sel("-", LEBAR.peta));
+    return (
+      `${escapeHtml(sel(b?.nama, LEBAR.truk))} ${escapeHtml(sel(b?.plat, LEBAR.plat))} ` +
+      `${escapeHtml(sel(b?.status, LEBAR.status))} ${escapeHtml(sel(b?.tujuan, LEBAR.tujuan))} ` +
+      `${escapeHtml(sel(b?.kec, LEBAR.kec, "kanan"))} ${link}`
+    );
+  });
+  return [k, garis(k), ...isi].join("\n");
 }
