@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, getTrucksShape } from "@/lib/supabase";
+import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, getTrucksShape, ambilRiwayatChat } from "@/lib/supabase";
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
@@ -60,6 +60,44 @@ async function jawabanStatusArmada() {
       total: trucks.length,
       dataCard: kartu,
     };
+  } catch {
+    return null;
+  }
+}
+
+// Tool lokal agent: "driver_truk". Menjawab siapa pengemudi bertugas.
+// Plat diambil eksplisit dari pesan, atau dari konteks: pesan-pesan
+// terakhir ("truck itu") lalu konteks truk aktif (?truk=PLAT).
+const POLA_DRIVER = /driver|sopir|pengemudi|yang (bawa|membawa|mengendarai|mengemudi)/i;
+const POLA_PLAT = /\b([A-Z]{1,2}\s?\d{1,4}\s?[A-Z]{1,3})\b/;
+const kunciPlatLokal = (s) => String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+async function jawabanDriver(pesan, userId, trukKonteks) {
+  let plat = (pesan.match(POLA_PLAT)?.[1] ?? "").toUpperCase().replace(/\s+/g, " ").trim() || null;
+  if (!plat) {
+    try {
+      const riwayat = await ambilRiwayatChat(userId);
+      const terakhir = (riwayat || []).slice(-6).reverse();
+      for (const m of terakhir) {
+        const cocok = String(m?.text ?? "").match(POLA_PLAT)?.[1];
+        if (cocok) {
+          plat = cocok.toUpperCase().replace(/\s+/g, " ").trim();
+          break;
+        }
+      }
+    } catch {}
+  }
+  if (!plat) plat = trukKonteks || null;
+  if (!plat) return null;
+  try {
+    const trucks = await getTrucksShape();
+    const t = (trucks || []).find((x) => kunciPlatLokal(x.plateNumber) === kunciPlatLokal(plat));
+    if (!t) return { text: `Plat ${plat} tidak terdaftar di armada.`, total: 0 };
+    if (t.driverName) {
+      const tujuan = t.destination ? ` menuju ${t.destination}` : "";
+      return { text: `Pengemudi ${t.nama} (${t.plateNumber}) yang bertugas: ${t.driverName}${tujuan}.`, total: 1 };
+    }
+    return { text: `${t.nama} (${t.plateNumber}): belum ada driver bertugas tercatat.`, total: 1 };
   } catch {
     return null;
   }
@@ -166,6 +204,24 @@ export async function POST(req) {
         toolTrace: {
           label: "Memanggil status_armada",
           command: "status_armada()",
+          result: { total: hasil.total },
+        },
+      });
+    }
+  }
+
+  // Tool driver truk deterministik (bebas OpenClaw). Menangani juga
+  // pertanyaan lanjutan ("truck itu") via riwayat + konteks truk aktif.
+  if (POLA_DRIVER.test(pesan)) {
+    const hasil = await jawabanDriver(pesan, user.id, truk);
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        toolTrace: {
+          label: "Memanggil driver_truk",
+          command: "driver_truk()",
           result: { total: hasil.total },
         },
       });
