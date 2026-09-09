@@ -3,7 +3,8 @@ import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, ambil
 import { getActiveTrucks } from "@/lib/trucks";
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
-import { describeFindings } from "@/lib/schedule-analysis";
+import { describeFindings, formatDateTime } from "@/lib/schedule-analysis";
+import { listSchedules } from "@/lib/schedule-store";
 import { buildAnalytics } from "@/lib/analytics";
 import { getAnalyticsSource } from "@/lib/data";
 import { muatPrompt } from "@/lib/agent-config";
@@ -107,6 +108,81 @@ async function jawabanDriver(pesan, userId, trukKonteks) {
 // Tool lokal agent: "cek_anomali_solar". Jawaban deterministik dari modul
 // analitik yang sama dengan halaman Analitik (insight fuelByTruck).
 const POLA_SOLAR = /solar|anomali|bahan bakar|\bbbm\b/i;
+
+// Tool lokal agent: "kondisi_truk". Saat ada plat eksplisit (atau konteks
+// truk aktif), rangkum khusus truk itu: status, kecepatan, posisi, trip,
+// driver, dan jadwal hari ini. Tidak menangani permintaan seluruh armada
+// ("status armada" / "rekap hari ini" tanpa plat).
+const POLA_KONDISI_TRUK = /(kondisi|status|rangkum|ringkas|rekap|kabar|posisi|tujuan|kemana|ke mana)/i;
+const POLA_ARMADA_KESELURUHAN = /semua (truk|armada)|seluruh (truk|armada)|rekap (armada|semua)/i;
+
+function polaKondisiMenunjukSatuTruk(pesan, trukKonteks) {
+  if (POLA_ARMADA_KESELURUHAN.test(pesan)) return false;
+  const punyaPlat = Boolean(pesan.match(POLA_PLAT)?.[1]);
+  if (punyaPlat) return POLA_KONDISI_TRUK.test(pesan);
+  // Tanpa plat di teks: hanya bila konteks truk aktif DAN pertanyaannya
+  // jelas tentang satu truk ("kondisinya", "truk itu", "posisinya").
+  if (!trukKonteks) return false;
+  return /truk|kondisinya|posisinya|statusnya|itu/.test(pesan) && POLA_KONDISI_TRUK.test(pesan);
+}
+
+async function jawabanKondisiTruk(pesan, trukKonteks) {
+  let plat =
+    (pesan.match(POLA_PLAT)?.[1] ?? "").toUpperCase().replace(/\s+/g, " ").trim() || null;
+  if (!plat && trukKonteks) plat = trukKonteks;
+  if (!plat) return null;
+  const platKey = kunciPlatLokal(plat);
+  try {
+    const trucks = await getActiveTrucks();
+    const t = (trucks || []).find((x) => kunciPlatLokal(x.plateNumber) === platKey);
+    if (!t) return { text: `Plat ${plat} tidak terdaftar di armada.`, total: 0 };
+
+    const kec = Math.round(Number(t.speedKph) || 0);
+    const st = t.tripStatus ?? t.status ?? "-";
+    const driver = t.driverName ? `Pengemudi: ${t.driverName}` : null;
+    const rute =
+      t.origin && t.destination ? `${t.origin} → ${t.destination}` : null;
+    const posisi =
+      t.lat != null && t.lng != null
+        ? `${Number(t.lat).toFixed(4)}, ${Number(t.lng).toFixed(4)}`
+        : null;
+
+    const baris = [
+      `${t.plateNumber} (${t.vehicleTypeShort ?? "-"}): ${st}, ${kec} km/jam.`,
+    ];
+    if (rute) baris.push(`Rute aktif: ${rute}.`);
+    if (driver) baris.push(driver);
+    if (posisi) baris.push(`Posisi terakhir: ${posisi}.`);
+
+    // Jadwal hari ini untuk truk itu (kalau ada), supaya jawaban mencakup
+    // rencana yang sama dengan halaman Jadwal.
+    try {
+      const semua = await listSchedules();
+      const awal = new Date();
+      awal.setHours(0, 0, 0, 0);
+      const akhir = new Date(awal);
+      akhir.setDate(akhir.getDate() + 1);
+      const milik = (semua || []).filter(
+        (s) =>
+          kunciPlatLokal(s.plate_number) === platKey &&
+          new Date(s.planned_departure) >= awal &&
+          new Date(s.planned_departure) < akhir
+      );
+      if (milik.length) {
+        const padat = milik.slice(0, 3).map(
+          (s) =>
+            `• ${formatDateTime(s.planned_departure)} → ${formatDateTime(s.planned_arrival)}: ${s.origin} → ${s.destination} (${s.status})`
+        );
+        baris.push(`Jadwal hari ini (${milik.length}):`);
+        baris.push(...padat);
+      }
+    } catch {}
+
+    return { text: baris.join("\n"), total: 1 };
+  } catch {
+    return null;
+  }
+}
 
 function jawabanSolar() {
   return jawabanSolarAsync().catch(() => null);
@@ -236,6 +312,25 @@ export async function POST(req) {
         toolTrace: {
           label: "Memanggil driver_truk",
           command: "driver_truk()",
+          result: { total: hasil.total },
+        },
+      });
+    }
+  }
+
+  // Tool kondisi satu truk deterministik (bebas OpenClaw). Menangani
+  // "Rangkum kondisi N 2298 MN hari ini" dan pertanyaan lanjutan soal truk
+  // yang sedang jadi konteks aktif.
+  if (polaKondisiMenunjukSatuTruk(pesan, truk)) {
+    const hasil = await jawabanKondisiTruk(pesan, truk);
+    if (hasil) {
+      await catatChat(pesan, hasil.text, "tool", user.id);
+      return NextResponse.json({
+        text: hasil.text,
+        mode: "tool",
+        toolTrace: {
+          label: "Memanggil kondisi_truk",
+          command: "kondisi_truk()",
           result: { total: hasil.total },
         },
       });

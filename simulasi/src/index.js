@@ -119,10 +119,14 @@ async function buatJadwal(st) {
   const menitAkhir = st.rute.waypoints.at(-1)?.tiba_menit ?? 60;
   const arrival = new Date(now.getTime() + Math.max(menitAkhir, 5) * 60000);
 
+  // Hapus hanya jadwal yang dibuat sim sebelumnya (actual_departure terisi =
+  // baris milik simulator). Jadwal manual admin (dijadwalkan, actual_departure
+  // null) TIDAK ikut dihapus, supaya rencana admin bertahan di grafik Jadwal.
   const { error: errDel } = await supabase
     .from('schedules')
     .delete()
-    .eq('truck_id', st.trukId);
+    .eq('truck_id', st.trukId)
+    .not('actual_departure', 'is', null);
   if (errDel) throw errDel;
 
   const { data, error: errIns } = await supabase

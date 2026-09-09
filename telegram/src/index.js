@@ -57,11 +57,27 @@ bot.setMyCommands([
   { command: 'status', description: 'Lihat posisi armada' },
   { command: 'rekap', description: 'Ringkasan pengaduan hari ini' },
   { command: 'pending', description: 'Pengaduan yang menunggu validasi' },
-  { command: 'detail', description: 'Detail satu truk (contoh: /detail 4)' },
+  { command: 'detail', description: 'Detail satu truk (contoh: /detail N 2298 MN)' },
 ]).catch((e) => log('ERROR', 'setMyCommands gagal', { error: e.message }));
 
 function jalanDariKecepatan(kecepatan) {
   return Number(kecepatan ?? 0) > 5 ? 'jalan' : 'berhenti';
+}
+
+// Jenis armada pendek dari kolom tipe (selaras lib/truck-types.js di web).
+// Kolom tipe di DB bisa label panjang ("Colt Diesel Double") atau kode
+// ("cdd"/"fuso"/"trailer"); cukup kenali kata kuncinya.
+function jenisPendek(tipe, plat = '') {
+  const t = String(tipe ?? '').toLowerCase();
+  if (t.includes('trailer')) return 'Trailer';
+  if (t.includes('fuso')) return 'Fuso';
+  if (t.includes('cdd') || t.includes('colt')) return 'CDD';
+  // Jatuh ke tipe asli (atau plat) bila kolom kosong/aneh, jangan "Truk NN".
+  return String(tipe ?? plat ?? '-').trim() || plat;
+}
+
+function kunciPlat(p) {
+  return String(p ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
 async function statusArmada() {
@@ -93,7 +109,8 @@ async function statusArmada() {
     const trip = tripAktif.get(p.truk_id);
     if (!truk) continue;
     baris.push({
-      nama: truk.nama,
+      // Identitas truk = jenis + plat (bukan penomoran "Truk NN").
+      nama: jenisPendek(truk.tipe, truk.plat),
       plat: truk.plat,
       status: jalanDariKecepatan(p.kecepatan),
       tujuan: trip?.tujuan ?? '?',
@@ -109,10 +126,11 @@ async function statusArmada() {
     : { html: 'Belum ada data posisi.', teks: 'Belum ada data posisi.' };
 }
 
-async function detailTruk(nomor) {
+async function detailTruk(platInput) {
+  const kunci = kunciPlat(platInput);
   const { data: trucks } = await supabase.from('trucks').select('*');
-  const truk = (trucks ?? []).find((t) => t.nama?.toLowerCase() === `truk ${nomor}`);
-  if (!truk) return `Truk ${nomor} tidak ditemukan.`;
+  const truk = (trucks ?? []).find((t) => kunciPlat(t.plat) === kunci);
+  if (!truk) return `Plat ${platInput} tidak terdaftar di armada.`;
 
   const { data: posisi } = await supabase
     .from('positions')
@@ -133,7 +151,8 @@ async function detailTruk(nomor) {
     : { data: null };
 
   const p = posisi?.[0];
-  const lines = [`Detail Truk ${nomor}:`, `Plat: ${truk.plat}`];
+  const jenis = jenisPendek(truk.tipe, truk.plat);
+  const lines = [`Detail ${truk.plat} (${jenis}):`];
   if (driver?.nama) lines.push(`Driver: ${driver.nama}${driver.telepon ? ` (${driver.telepon})` : ''}`);
   if (p) {
     lines.push(`Status: ${jalanDariKecepatan(p.kecepatan)} (${p.kecepatan ?? 0} km/jam)`);
@@ -282,19 +301,16 @@ bot.onText(/\/pending/, async (msg) => {
   }
 });
 
-bot.onText(/\/detail\s+(\d+)/, async (msg, match) => {
+bot.onText(/\/detail\s+(.+)/, async (msg, match) => {
   if (!(await bolehAkses(msg.chat.id))) return;
   if (isRateLimited(msg.chat.id)) return;
-  const nomor = parseInt(match[1], 10);
-  if (nomor < 1 || nomor > 99) {
-    await bot.sendMessage(msg.chat.id, 'Nomor truk harus 1-99.', { reply_markup: INLINE_KEYBOARD });
-    return;
-  }
+  const platInput = String(match[1] ?? '').trim().toUpperCase();
+  if (!platInput) return;
   try {
-    const pesan = await detailTruk(nomor);
+    const pesan = await detailTruk(platInput);
     await bot.sendMessage(msg.chat.id, pesan, { reply_markup: INLINE_KEYBOARD });
   } catch (e) {
-    log('ERROR', 'detail gagal', { nomor, error: e.message });
+    log('ERROR', 'detail gagal', { plat: platInput, error: e.message });
     await bot.sendMessage(msg.chat.id, 'Gagal mengambil detail truk.', { reply_markup: INLINE_KEYBOARD });
   }
 });
