@@ -3,7 +3,7 @@
 // Dua varian: polos (fallback saat parse HTML gagal) dan HTML (kolom Peta
 // jadi link Google Maps yang bisa diklik).
 // Murni (tanpa side effect) supaya bisa diuji: node --test / node assert.
-const LEBAR = { truk: 8, plat: 11, status: 8, tujuan: 11, kec: 3, peta: 14 };
+const LEBAR = { truk: 8, plat: 11, status: 8, tujuan: 11, kec: 9, peta: 14 };
 
 export const URL_MAPS = (lat, lon) => `https://www.google.com/maps?q=${lat},${lon}`;
 function sel(teks, lebar, rata = "kiri") {
@@ -28,11 +28,13 @@ function kepala() {
   return (
     `${sel("Truk", LEBAR.truk)} ${sel("Plat", LEBAR.plat)} ` +
     `${sel("Status", LEBAR.status)} ${sel("Tujuan", LEBAR.tujuan)} ` +
-    `${sel("Kec", LEBAR.kec, "kanan")} ${sel("Peta", LEBAR.peta)}`
+    `${sel("Kecepatan", LEBAR.kec, "kanan")} ${sel("Peta", LEBAR.peta)}`
   );
 }
 
 const garis = (k) => "-".repeat(k.length);
+
+const nilaiKec = (kec) => (kec != null ? `${kec} km/j` : "-");
 
 // baris: [{ nama, plat, status, tujuan, kec, lat, lon }] → string tabel polos.
 // Kolom Peta berisi koordinat agar tetap berguna walau tak bisa diklik.
@@ -42,7 +44,7 @@ export function formatTabelArmada(baris) {
     (b) =>
       `${sel(b.nama, LEBAR.truk)} ${sel(b.plat, LEBAR.plat)} ` +
       `${sel(b.status, LEBAR.status)} ${sel(b.tujuan, LEBAR.tujuan)} ` +
-      `${sel(b.kec, LEBAR.kec, "kanan")} ${sel(koordinat(b), LEBAR.peta)}`
+      `${sel(nilaiKec(b.kec), LEBAR.kec, "kanan")} ${sel(koordinat(b), LEBAR.peta)}`
   );
   return [k, garis(k), ...isi].join("\n");
 }
@@ -59,7 +61,7 @@ export function formatTabelArmadaHtml(baris) {
     return (
       `${escapeHtml(sel(b?.nama, LEBAR.truk))} ${escapeHtml(sel(b?.plat, LEBAR.plat))} ` +
       `${escapeHtml(sel(b?.status, LEBAR.status))} ${escapeHtml(sel(b?.tujuan, LEBAR.tujuan))} ` +
-      `${escapeHtml(sel(b?.kec, LEBAR.kec, "kanan"))} ${link}`
+      `${escapeHtml(sel(nilaiKec(b?.kec), LEBAR.kec, "kanan"))} ${link}`
     );
   });
   return [k, garis(k), ...isi].join("\n");
