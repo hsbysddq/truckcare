@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useFillViewport } from "@/components/dashboard/DashboardShell";
 import Link from "next/link";
 import {
   CalendarPlus,
@@ -121,19 +122,30 @@ function DriverCard({ row }) {
 function Column({ statusKey, rows }) {
   const meta = driverStatusMeta[statusKey];
   const copy = pengemudiPage;
+  // Bayangan tipis di bawah header muncul setelah kolom digulir.
+  const [tergulir, setTergulir] = useState(false);
   return (
     <section
       aria-label={meta.label}
-      className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/70"
+      className="flex h-full min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/70"
     >
-      <header className="flex items-center gap-2 px-4 py-3">
+      <header className="relative z-10 flex flex-none items-center gap-2 px-4 py-3">
         <span className={`h-2.5 w-2.5 flex-none rounded-full ${meta.dotClass}`} aria-hidden="true" />
         <h2 className="text-sm font-semibold text-slate-900">{meta.label}</h2>
         <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-600 ring-1 ring-slate-200">
           {rows.length}
         </span>
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 top-full h-3 bg-gradient-to-b from-slate-900/10 to-transparent transition-opacity ${
+            tergulir ? "opacity-100" : "opacity-0"
+          }`}
+        />
       </header>
-      <div className="max-h-[calc(100vh-18rem)] min-h-40 space-y-3 overflow-y-auto px-3 pb-3">
+      <div
+        onScroll={(e) => setTergulir(e.currentTarget.scrollTop > 0)}
+        className="scrollbar-halus min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3"
+      >
         {rows.length === 0 ? (
           <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 text-slate-300">
             <UserRound className="h-7 w-7" strokeWidth={1.25} aria-hidden="true" />
@@ -183,14 +195,17 @@ export default function DriverList({ rows, summary, scheduleCount }) {
 
   const effectiveView = isSmall ? "list" : view;
   const tanpaJadwal = scheduleCount === 0;
+  // Mode papan: halaman tidak menggulir, kolom mengisi sisa tinggi viewport.
+  const modePapan = effectiveView === "board" && rows.length > 0;
+  useFillViewport(modePapan);
   const ringkasan = [
     `${rows.length} ${copy.summaryUnit}`,
     ...STATUS_ORDER.map((k) => `${summary?.[k] ?? 0} ${driverStatusMeta[k].label.toLowerCase()}`),
   ].join(" · ");
 
   return (
-    <div>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className={modePapan ? "flex min-h-0 flex-1 flex-col" : ""}>
+      <div className="flex flex-none flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{copy.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{ringkasan}</p>
@@ -238,7 +253,7 @@ export default function DriverList({ rows, summary, scheduleCount }) {
       {tanpaJadwal && rows.length > 0 && (
         <div
           role="status"
-          className="mt-6 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between"
+          className="mt-6 flex flex-none flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between"
         >
           <span>{copy.noSchedule.message}</span>
           <Link
@@ -277,9 +292,11 @@ export default function DriverList({ rows, summary, scheduleCount }) {
           <p className="text-sm font-semibold text-slate-700">{copy.noDrivers}</p>
         </div>
       ) : effectiveView === "board" ? (
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2 md:grid-rows-2 lg:grid-cols-4 lg:grid-rows-1">
           {STATUS_ORDER.map((k) => (
-            <Column key={k} statusKey={k} rows={byStatus[k]} />
+            <div key={k} className="min-h-0">
+              <Column statusKey={k} rows={byStatus[k]} />
+            </div>
           ))}
         </div>
       ) : listRows.length === 0 ? (

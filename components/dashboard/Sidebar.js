@@ -65,7 +65,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+        <nav className="scrollbar-halus min-h-0 flex-1 space-y-1 overflow-y-auto px-3">
           {dashboardNav.map((item) => {
             const Icon = iconMap[item.icon];
             const active = pathname === item.href;

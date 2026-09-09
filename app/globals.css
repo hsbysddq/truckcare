@@ -54,6 +54,27 @@ body {
   overflow-x: clip;
 }
 
+/* Scrollbar tipis abu-abu muda yang hanya terlihat saat hover (kolom papan,
+   menu sidebar). Firefox: scrollbar-width/color; WebKit: ::-webkit-scrollbar. */
+.scrollbar-halus {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.scrollbar-halus:hover {
+  scrollbar-color: #cbd5e1 transparent;
+}
+.scrollbar-halus::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-halus::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+.scrollbar-halus:hover::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
 /* Panel pengaduan: blok keputusan masuk dari atas saat STATE A -> B. */
 @keyframes keputusan-masuk {
   from {
