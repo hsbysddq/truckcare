@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import Script from "next/script";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginPage } from "@/lib/content";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
+const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const turnstileContainer = useRef(null);
+  const widgetId = useRef(null);
+  const [token, setToken] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [galat, setGalat] = useState(null);
@@ -16,6 +22,42 @@ export default function LoginForm() {
   const envSiap = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
+
+  function renderTurnstile() {
+    if (!turnstileContainer.current || widgetId.current !== null) return;
+    widgetId.current = window.turnstile.render(turnstileContainer.current, {
+      sitekey: SITE_KEY,
+      action: "login",
+      callback: setToken,
+    });
+  }
+
+  function resetTurnstile() {
+    if (widgetId.current !== null) {
+      try {
+        window.turnstile.reset(widgetId.current);
+      } catch {}
+      setToken("");
+    }
+  }
+
+  // Gate Turnstile sebelum signInWithPassword. Gagal = blokir login.
+  async function cekCaptcha() {
+    if (!token) throw new Error(loginPage.captchaError);
+    const res = await fetch("/api/auth/verify-captcha", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (!res.ok) {
+      let msg = "Verifikasi captcha gagal.";
+      try {
+        const d = await res.json();
+        if (d?.error) msg = d.error;
+      } catch {}
+      throw new Error(msg);
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -28,6 +70,7 @@ export default function LoginForm() {
     setGalat(null);
 
     try {
+      await cekCaptcha();
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -42,6 +85,7 @@ export default function LoginForm() {
     } catch (e) {
       setGalat(e?.message ?? loginPage.envMissingError);
     } finally {
+      resetTurnstile();
       setSubmitting(false);
     }
   }
@@ -88,6 +132,21 @@ export default function LoginForm() {
         />
       </div>
 
+      <div>
+        {SITE_KEY ? (
+          <>
+            <Script
+              src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+              strategy="afterInteractive"
+              onReady={renderTurnstile}
+            />
+            <div ref={turnstileContainer} className="cf-turnstile" />
+          </>
+        ) : (
+          <p className="text-xs text-slate-400">{loginPage.captchaIconMissing}</p>
+        )}
+      </div>
+
       {!envSiap && !galat && (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {loginPage.envMissingError}
@@ -107,7 +166,7 @@ export default function LoginForm() {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !token}
         className="w-full rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-dark disabled:opacity-70"
       >
         {submitting ? loginPage.submittingLabel : loginPage.submitLabel}

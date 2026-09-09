@@ -3,7 +3,7 @@
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import { createClient } from '@supabase/supabase-js';
-import { formatTabelArmada, formatTabelArmadaHtml } from './tabel.js';
+import { formatTabelArmada, formatTabelArmadaHtml, formatTabelPengaduan, formatTabelPengaduanHtml } from './tabel.js';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 // Chat ID owner bootstrap: selalu boleh, anti-lockout kalau tabel
@@ -126,11 +126,17 @@ async function pengaduanMenunggu() {
     .order('created_at', { ascending: false })
     .limit(5);
   if (error) throw error;
-  if (!data?.length) return 'Tidak ada pengaduan yang menunggu validasi.';
-  const baris = data.map(
-    (p) => `• ${p.plat} (${p.tanggal}${p.jam ? ` ${p.jam}` : ''}): ${(p.deskripsi ?? '').slice(0, 80)}`
-  );
-  return `Menunggu validasi (${data.length}):\n${baris.join('\n')}`;
+  if (!data?.length) return { html: 'Tidak ada pengaduan yang menunggu validasi.', teks: 'Tidak ada pengaduan yang menunggu validasi.' };
+  const baris = data.map((p) => ({
+    plat: p.plat,
+    tanggal: p.tanggal,
+    jam: p.jam ?? "-",
+    deskripsi: (p.deskripsi ?? "").slice(0, 42),
+  }));
+  return {
+    html: `Menunggu validasi (${data.length}):\n<pre>${formatTabelPengaduanHtml(baris)}</pre>`,
+    teks: `Menunggu validasi (${data.length}):\n${formatTabelPengaduan(baris)}`,
+  };
 }
 
 // Boleh akses kalau owner bootstrap atau chat_id terdaftar di tabel
@@ -204,9 +210,17 @@ bot.onText(new RegExp(`^(\\/rekap|${TOMBOL_REKAP})$`), async (msg) => {
 bot.onText(new RegExp(`^(\\/pending|${TOMBOL_TUNGGU})$`), async (msg) => {
   if (!(await bolehAkses(msg.chat.id))) return;
   try {
-    await bot.sendMessage(msg.chat.id, await pengaduanMenunggu(), {
-      reply_markup: KEYBOARD,
-    });
+    const pesan = await pengaduanMenunggu();
+    try {
+      await bot.sendMessage(msg.chat.id, pesan.html, {
+        parse_mode: 'HTML',
+        reply_markup: KEYBOARD,
+      });
+    } catch {
+      await bot.sendMessage(msg.chat.id, pesan.teks, {
+        reply_markup: KEYBOARD,
+      });
+    }
   } catch (e) {
     console.error(e);
     await bot.sendMessage(msg.chat.id, "Gagal mengambil daftar tunggu.");

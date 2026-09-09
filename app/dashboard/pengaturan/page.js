@@ -2,6 +2,7 @@ import { pengaturanPage, dashboardTitle } from "@/lib/content";
 import AksesBot from "@/components/dashboard/pengaturan/AksesBot";
 import StatusTelegram from "@/components/dashboard/pengaturan/StatusTelegram";
 import StatusOpenClaw from "@/components/dashboard/pengaturan/StatusOpenClaw";
+import AgentPromptPanel from "@/components/dashboard/pengaturan/AgentPromptPanel";
 
 export const metadata = { title: dashboardTitle("/dashboard/pengaturan") };
 
@@ -22,6 +23,7 @@ export default function PengaturanPage() {
         <div className="space-y-6">
           <StatusTelegram />
           <StatusOpenClaw />
+          <AgentPromptPanel />
         </div>
       </div>
     </div>
