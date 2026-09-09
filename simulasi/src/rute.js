@@ -1,4 +1,4 @@
-// Rute tetap (waypoint) untuk 10 truk — simulasi distribusi.
+// Rute tetap (waypoint) untuk 15 truk — simulasi distribusi.
 // Format: [lat, lon, label, tiba_menit] — tiba_menit = menit sejak mulai perjalanan.
 // Plat dan rute sengaja disamakan dengan armada dummy di lib/data.js:
 // seluruhnya antar kota Jawa Timur (plat L, W, N, AG).
@@ -137,6 +137,71 @@ export const RUTE = [
       [-7.8350, 112.6950, "Lawang", 100],
       [-7.8900, 112.6650, "Singosari", 115],
       [-7.9770, 112.6300, "Malang", 135],
+    ],
+  },
+  // Truk 11 — Surabaya → Lamongan
+  {
+    truk: "L 9911 MU",
+    asal: "Surabaya",
+    tujuan: "Lamongan",
+    waypoints: [
+      [-7.3000, 112.7300, "Terminal Surabaya", 0],
+      [-7.2300, 112.5200, "Tanjung Bumi", 30],
+      [-7.1700, 112.4800, "Sukodadi", 50],
+      [-7.1100, 112.4100, "Lamongan", 80],
+    ],
+  },
+  // Truk 12 — Surabaya → Mojokerto
+  {
+    truk: "W 1234 NV",
+    asal: "Surabaya",
+    tujuan: "Mojokerto",
+    waypoints: [
+      [-7.3000, 112.7300, "Terminal Surabaya", 0],
+      [-7.3900, 112.6500, "Gedangan", 25],
+      [-7.4500, 112.5400, "Tulangan", 45],
+      [-7.5100, 112.4600, "Krian", 60],
+      [-7.5500, 112.4300, "Mojokerto", 80],
+    ],
+  },
+  // Truk 13 — Gresik → Tuban
+  {
+    truk: "N 7788 OP",
+    asal: "Gresik",
+    tujuan: "Tuban",
+    waypoints: [
+      [-7.1600, 112.6500, "Pelabuhan Gresik", 0],
+      [-7.0900, 112.6000, "Ujungpangkah", 30],
+      [-7.0000, 112.5000, "Sidayu", 60],
+      [-6.9700, 112.3000, "Babat", 95],
+      [-6.9000, 112.0700, "Tuban", 135],
+    ],
+  },
+  // Truk 14 — Sidoarjo → Jombang
+  {
+    truk: "AG 5566 PQ",
+    asal: "Sidoarjo",
+    tujuan: "Jombang",
+    waypoints: [
+      [-7.4470, 112.7180, "Depo Sidoarjo", 0],
+      [-7.4900, 112.6200, "Tarik", 35],
+      [-7.5200, 112.5200, "Prambon", 55],
+      [-7.5700, 112.4200, "Diwek", 80],
+      [-7.5450, 112.2200, "Jombang", 110],
+    ],
+  },
+  // Truk 15 — Surabaya → Nganjuk
+  {
+    truk: "B 3344 RS",
+    asal: "Surabaya",
+    tujuan: "Nganjuk",
+    waypoints: [
+      [-7.3000, 112.7300, "Terminal Surabaya", 0],
+      [-7.5100, 112.4600, "Krian", 45],
+      [-7.5500, 112.4300, "Mojokerto", 65],
+      [-7.6100, 112.2800, "Jombang", 100],
+      [-7.6100, 112.1900, "Tembelang", 120],
+      [-7.6000, 112.0100, "Nganjuk", 150],
     ],
   },
 ];
