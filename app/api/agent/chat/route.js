@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+<<<<<<< HEAD
 import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, ambilRiwayatChat } from "@/lib/supabase";
 import { getActiveTrucks } from "@/lib/trucks";
+=======
+import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, getTrucksShape, ambilRiwayatChat, getAnalyticsSourceLive } from "@/lib/supabase";
+>>>>>>> aa66557ac25ea7a3ac0d6cb47df0096c33840bab
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
@@ -109,11 +113,24 @@ async function jawabanDriver(pesan, userId, trukKonteks) {
 const POLA_SOLAR = /solar|anomali|bahan bakar|\bbbm\b/i;
 
 function jawabanSolar() {
+  return jawabanSolarAsync().catch(() => null);
+}
+
+async function jawabanSolarAsync() {
+  let source = null;
   try {
-    const a = buildAnalytics(getAnalyticsSource(), {});
-    const insight = a?.fuelByTruck?.insight;
-    if (insight) return { text: insight };
-  } catch {}
+    source = await getAnalyticsSourceLive();
+  } catch {
+    source = getAnalyticsSource();
+  }
+  const a = buildAnalytics(source, {});
+  // Tanpa telemetri BBM tidak ada anomali yang bisa diperiksa: jawab jujur,
+  // bukan angka contoh.
+  if (a?.fuelByTruck?.empty) {
+    return { text: "Data solar belum tersedia (tidak ada telemetri BBM tersambung), jadi tidak ada anomali yang bisa diperiksa." };
+  }
+  const insight = a?.fuelByTruck?.insight;
+  if (insight) return { text: insight };
   return null;
 }
 
@@ -231,7 +248,7 @@ export async function POST(req) {
 
   // Tool anomali solar deterministik (bebas OpenClaw).
   if (POLA_SOLAR.test(pesan)) {
-    const hasil = jawabanSolar();
+    const hasil = await jawabanSolar();
     if (hasil) {
       await catatChat(pesan, hasil.text, "tool", user.id);
       return NextResponse.json({
