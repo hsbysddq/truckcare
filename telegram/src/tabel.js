@@ -26,7 +26,7 @@ function koordinat(b) {
 
 function kepala() {
   return (
-    `${sel("Truk", LEBAR.truk)} ${sel("Plat", LEBAR.plat)} ` +
+    `${sel("Jenis", LEBAR.truk)} ${sel("Plat", LEBAR.plat)} ` +
     `${sel("Status", LEBAR.status)} ${sel("Tujuan", LEBAR.tujuan)} ` +
     `${sel("Kecepatan", LEBAR.kec, "kanan")} ${sel("Peta", LEBAR.peta)}`
   );
