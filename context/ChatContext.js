@@ -90,6 +90,21 @@ export function ChatProvider({ children }) {
 
   const dismissError = useCallback(() => setError(null), []);
 
+  // Hapus seluruh riwayat milik user (server DELETE /api/chat) lalu
+  // kosongkan state lokal. Kembalikan true bila berhasil; bila gagal,
+  // tampilkan lewat banner error yang sama seperti kegagalan lain.
+  const clearHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/chat", { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setMessages([]);
+      return true;
+    } catch {
+      setError({ kind: "clear", text: chatPage.errors.clear });
+      return false;
+    }
+  }, []);
+
   return (
     <ChatContext.Provider
       value={{
@@ -103,6 +118,7 @@ export function ChatProvider({ children }) {
         activateTruck,
         clearTruckContext,
         reloadHistory: () => loadHistory(),
+        clearHistory,
         dismissError,
       }}
     >

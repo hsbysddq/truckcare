@@ -6,16 +6,16 @@
 -- ============================================================
 
 insert into trucks (plat, nama, tipe) values
-  ('L 8821 AB',  'Truk 1',  'distribusi'),
-  ('W 9042 CD',  'Truk 2',  'distribusi'),
-  ('W 1187 EF',  'Truk 3',  'distribusi'),
-  ('L 5560 GH',  'Truk 4',  'distribusi'),
-  ('W 3324 IJ',  'Truk 5',  'distribusi'),
-  ('N 7743 KL',  'Truk 6',  'distribusi'),
-  ('N 2298 MN',  'Truk 7',  'distribusi'),
-  ('W 6612 OP',  'Truk 8',  'distribusi'),
-  ('AG 4405 QR', 'Truk 9',  'distribusi'),
-  ('L 8890 ST',  'Truk 10', 'distribusi')
+  ('L 8821 AB',  'Truk 1',  'Trailer'),
+  ('W 9042 CD',  'Truk 2',  'Fuso'),
+  ('W 1187 EF',  'Truk 3',  'Trailer'),
+  ('L 5560 GH',  'Truk 4',  'Colt Diesel Double'),
+  ('W 3324 IJ',  'Truk 5',  'Colt Diesel Double'),
+  ('N 7743 KL',  'Truk 6',  'Colt Diesel Double'),
+  ('N 2298 MN',  'Truk 7',  'Fuso'),
+  ('W 6612 OP',  'Truk 8',  'Fuso'),
+  ('AG 4405 QR', 'Truk 9',  'Colt Diesel Double'),
+  ('L 8890 ST',  'Truk 10', 'Fuso')
 on conflict (plat) do nothing;
 
 insert into drivers (nama, no_hp) values

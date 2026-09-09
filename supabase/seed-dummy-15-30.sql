@@ -13,11 +13,11 @@
 
 -- ---------- 1. Truk 11-15 (ops pemilihan 10 existing tetap) ----------
 insert into trucks (plat, nama, tipe, status) values
-  ('L 9911 MU',  'Truk 11', 'distribusi', 'aktif'),
-  ('W 1234 NV',  'Truk 12', 'distribusi', 'aktif'),
-  ('N 7788 OP',  'Truk 13', 'distribusi', 'aktif'),
-  ('AG 5566 PQ', 'Truk 14', 'distribusi', 'aktif'),
-  ('B 3344 RS',  'Truk 15', 'distribusi', 'aktif')
+  ('L 9911 MU',  'Truk 11', 'Colt Diesel Double', 'aktif'),
+  ('W 1234 NV',  'Truk 12', 'Colt Diesel Double', 'aktif'),
+  ('N 7788 OP',  'Truk 13', 'Trailer', 'aktif'),
+  ('AG 5566 PQ', 'Truk 14', 'Fuso', 'aktif'),
+  ('B 3344 RS',  'Truk 15', 'Trailer', 'aktif')
 on conflict (plat) do nothing;
 
 -- ---------- 2. Ganti nama driver generik jadi nama asli ----------

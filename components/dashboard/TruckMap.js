@@ -39,15 +39,24 @@ function MapViewport({ trucks, selectedTruck }) {
     .join("|");
 
   useEffect(() => {
-    if (selectedTruck) {
-      map.flyTo([selectedTruck.lat, selectedTruck.lng], SELECTED_ZOOM);
-      return;
-    }
-    if (trucks.length === 0) return;
-    map.fitBounds(
-      L.latLngBounds(trucks.map((truck) => [truck.lat, truck.lng])),
-      { padding: FIT_PADDING }
-    );
+    // Jangan pindah viewport sebelum container peta siap (mis. tab/modal
+    // masih tersembunyi): Leaflet crash `_leaflet_pos` bila luasan 0.
+    const el = map.getContainer();
+    if (!el || el.clientWidth === 0 || el.clientHeight === 0) return undefined;
+
+    const raf = requestAnimationFrame(() => {
+      map.invalidateSize();
+      if (selectedTruck) {
+        map.flyTo([selectedTruck.lat, selectedTruck.lng], SELECTED_ZOOM);
+        return;
+      }
+      if (trucks.length === 0) return;
+      map.fitBounds(
+        L.latLngBounds(trucks.map((truck) => [truck.lat, truck.lng])),
+        { padding: FIT_PADDING }
+      );
+    });
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, selectedTruck?.id, selectedTruck?.lat, selectedTruck?.lng, boundsKey]);
 
