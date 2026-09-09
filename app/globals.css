@@ -165,6 +165,47 @@ body {
   }
 }
 
+/* Panel Mengapa: konten panel aktif masuk dari bawah saat mengembang. */
+@keyframes panel-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animasi-panel-masuk {
+  animation: panel-masuk 400ms ease-out 150ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animasi-panel-masuk {
+    animation: none;
+  }
+}
+
+/* Ribbon wordmark: bergeser setengah lebar (dua salinan isi) lalu mengulang. */
+@keyframes ribbon-loop {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.animasi-ribbon {
+  animation: ribbon-loop 30s linear infinite;
+}
+.animasi-ribbon:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animasi-ribbon {
+    animation: none;
+  }
+}
+
 @keyframes hero-content-in {
   from {
     opacity: 0;
