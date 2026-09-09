@@ -3,6 +3,7 @@
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import { createClient } from '@supabase/supabase-js';
+import { formatTabelArmada, formatTabelArmadaHtml } from './tabel.js';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 // Chat ID owner bootstrap: selalu boleh, anti-lockout kalau tabel
@@ -45,31 +46,62 @@ bot
   ])
   .catch((e) => console.error("setMyCommands gagal:", e.message));
 
+// Batas gerak sama dengan web (lib/supabase.js statusDariPosisi): di atas
+// 5 km/jam = jalan. Label dipertahankan gaya bot (jalan/berhenti).
+function jalanDariKecepatan(kecepatan) {
+  return Number(kecepatan ?? 0) > 5 ? 'jalan' : 'berhenti';
+}
+
 async function statusArmada() {
+  // Limit + pilihan trip disamakan dengan web (getTrucksShape) supaya
+  // angka bot dan peta selalu dari baris yang sama.
   const { data: posisi, error: errPosisi } = await supabase
     .from('positions')
     .select('*')
     .order('ts', { ascending: false })
-    .limit(100);
+    .limit(200);
   if (errPosisi) throw errPosisi;
-  const { data: trips } = await supabase.from('trips').select('*').eq('status', 'berjalan');
+  const { data: trips } = await supabase
+    .from('trips')
+    .select('truk_id,tujuan,mulai')
+    .eq('status', 'berjalan')
+    .order('mulai', { ascending: false })
+    .limit(200);
   const { data: trucks } = await supabase.from('trucks').select('*');
 
   const byTruk = new Map((trucks ?? []).map((t) => [t.id, t]));
-  const byTrip = new Map((trips ?? []).map((t) => [t.truk_id, t]));
+  const tripAktif = new Map();
+  for (const t of trips ?? []) {
+    if (t && !tripAktif.has(t.truk_id)) tripAktif.set(t.truk_id, t);
+  }
   const seen = new Set();
   const baris = [];
   for (const p of posisi ?? []) {
     if (seen.has(p.truk_id)) continue;
     seen.add(p.truk_id);
     const truk = byTruk.get(p.truk_id);
-    const trip = byTrip.get(p.truk_id);
+    const trip = tripAktif.get(p.truk_id);
     if (!truk) continue;
-    const status = p.status === 'jalan' ? 'jalan' : 'berhenti';
-    const tujuan = trip?.tujuan ?? '?';
-    baris.push(`• ${truk.nama} (${truk.plat}): ${status}, menuju ${tujuan}, ${Number(p.kecepatan ?? 0).toFixed(0)} km/jam`);
+    baris.push({
+      nama: truk.nama,
+      plat: truk.plat,
+      status: jalanDariKecepatan(p.kecepatan),
+      tujuan: trip?.tujuan ?? '?',
+      kec: String(Number(p.kecepatan ?? 0).toFixed(0)),
+      lat: p.lat,
+      lon: p.lon,
+    });
   }
-  return baris.length ? `Status armada:\n${baris.join('\n')}` : 'Belum ada data posisi.';
+  // { html, teks }: kirim html (blok <pre> rapi); kalau parse gagal,
+  // fallback teks polos supaya data tetap sampai.
+  const tabelHtml = formatTabelArmadaHtml(baris);
+  const tabelTeks = formatTabelArmada(baris);
+  return baris.length
+    ? {
+        html: `Status armada:\n<pre>${tabelHtml}</pre>`,
+        teks: `Status armada:\n${tabelTeks}`,
+      }
+    : { html: 'Belum ada data posisi.', teks: 'Belum ada data posisi.' };
 }
 
 async function rekapHariIni() {
@@ -140,9 +172,17 @@ bot.onText(/\/start/, async (msg) => {
 bot.onText(new RegExp(`^(\\/status|${TOMBOL_STATUS})$`), async (msg) => {
   if (!(await bolehAkses(msg.chat.id))) return;
   try {
-    await bot.sendMessage(msg.chat.id, await statusArmada(), {
-      reply_markup: KEYBOARD,
-    });
+    const pesan = await statusArmada();
+    try {
+      await bot.sendMessage(msg.chat.id, pesan.html, {
+        parse_mode: 'HTML',
+        reply_markup: KEYBOARD,
+      });
+    } catch {
+      await bot.sendMessage(msg.chat.id, pesan.teks, {
+        reply_markup: KEYBOARD,
+      });
+    }
   } catch (e) {
     console.error(e);
     await bot.sendMessage(msg.chat.id, "Gagal mengambil status.");

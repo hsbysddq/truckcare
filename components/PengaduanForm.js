@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, ImagePlus, Loader2, Truck } from "lucide-react";
 import { pengaduanPublikPage } from "@/lib/content";
 import { formatPlateInput, isValidPlate, normalizePlate } from "@/lib/format";
 
@@ -10,28 +10,6 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const MAKS_FOTO_BYTES = 2 * 1024 * 1024;
 const MIN_DESKRIPSI = 20;
 const BUCKET = "foto-pengaduan";
-const JEDA_CEK_PLAT_MS = 600;
-// Status DB untuk laporan yang platnya tidak terdaftar (lihat
-// supabase/pengaduan-luar-armada.sql). Tidak memblokir pengiriman.
-const STATUS_LUAR_ARMADA = "luar_armada";
-
-// Tanya server apakah plat terdaftar. Jawaban hanya { found } tanpa detail.
-// null = tidak diketahui (jaringan/rate limit), jangan dianggap "tidak ada".
-async function cekPlatKeServer(plat, signal) {
-  try {
-    const res = await fetch("/api/check-plate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plate: plat }),
-      signal,
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return typeof data?.found === "boolean" ? data.found : null;
-  } catch {
-    return null;
-  }
-}
 
 function tanggalHariIni() {
   const sekarang = new Date();
@@ -42,6 +20,9 @@ function tanggalHariIni() {
 
 export default function PengaduanForm() {
   const copy = pengaduanPublikPage;
+  const turnstileContainer = useRef(null);
+  const widgetId = useRef(null);
+  const [token, setToken] = useState("");
   const [nilai, setNilai] = useState({
     plat: "",
     tanggal: tanggalHariIni(),
@@ -53,8 +34,6 @@ export default function PengaduanForm() {
   const [memproses, setMemproses] = useState(false);
   const [pesanGalat, setPesanGalat] = useState(null);
   const [terkirim, setTerkirim] = useState(null);
-  // idle | invalid | checking | found | notFound | unknown
-  const [cekPlat, setCekPlat] = useState("idle");
 
   function ubah(bidang) {
     return (event) => {
@@ -127,27 +106,27 @@ export default function PengaduanForm() {
     return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${jalur}`;
   }
 
-  async function simpan(plat, tanggal, jam, deskripsi, fotoUrl, status) {
+  async function simpan(plat, tanggal, jam, deskripsi, fotoUrl) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/pengaduan`, {
       method: "POST",
-      headers: {
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${SUPABASE_ANON}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         plat,
         tanggal,
         jam: jam || null,
         deskripsi: deskripsi.trim(),
         foto_url: fotoUrl || null,
-        ...(status ? { status } : {}),
       }),
     });
-    if (!res.ok) throw new Error("insert gagal");
-    const baris = await res.json();
-    return Array.isArray(baris) ? baris[0] : baris;
+    if (!res.ok) {
+      let msg = copy.errors.network;
+      try {
+        const d = await res.json();
+        if (d?.error) msg = d.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
   }
 
   async function handleSubmit(event) {
@@ -158,6 +137,10 @@ export default function PengaduanForm() {
       return;
     }
     if (!validasi()) return;
+    if (!token) {
+      setPesanGalat(copy.errors.captcha);
+      return;
+    }
 
     setMemproses(true);
     setPesanGalat(null);
@@ -185,13 +168,13 @@ export default function PengaduanForm() {
         nilai.tanggal,
         nilai.jam,
         nilai.deskripsi,
-        fotoUrl,
-        statusAwal
+        fotoUrl
       );
-      setTerkirim({ id: baris.id, luarArmada: statusAwal === STATUS_LUAR_ARMADA });
+      setTerkirim(baris.id);
     } catch {
       setPesanGalat(copy.errors.network);
     } finally {
+      resetTurnstile();
       setMemproses(false);
     }
   }
@@ -202,7 +185,6 @@ export default function PengaduanForm() {
     setGalat({});
     setPesanGalat(null);
     setTerkirim(null);
-    setCekPlat("idle");
   }
 
   if (terkirim) {
@@ -419,10 +401,27 @@ export default function PengaduanForm() {
           </p>
         )}
 
+        <div>
+          {SITE_KEY ? (
+            <>
+              <Script
+                src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+                strategy="afterInteractive"
+                onReady={renderTurnstile}
+              />
+              <div ref={turnstileContainer} className="cf-turnstile" />
+            </>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Captcha belum dikonfigurasi. Hubungi tim jika ini berlangsung.
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center">
           <button
             type="submit"
-            disabled={memproses}
+            disabled={memproses || !token}
             className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-cta px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cta-dark disabled:opacity-70 sm:flex-none sm:px-8"
           >
             {memproses ? (
