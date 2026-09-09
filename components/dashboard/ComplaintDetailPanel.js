@@ -48,7 +48,7 @@ function ConfirmDialog({ open, title, description, confirmLabel, cancelLabel, da
   }, [open, onCancel]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6">
+    <div className="fixed inset-0 z-modal flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6">
       <div role="dialog" aria-modal="true" aria-labelledby="dialog-judul" className="w-full max-w-md rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl">
         <h3 id="dialog-judul" className="text-lg font-bold text-slate-900">{title}</h3>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p>
@@ -106,7 +106,7 @@ function PanelMenu({ items }) {
         <MoreVertical className="h-5 w-5" strokeWidth={1.75} />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-30 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+        <div role="menu" className="absolute right-0 z-popover mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
           {items.map((item) => (
             <button
               key={item.label}
@@ -581,10 +581,22 @@ export default function ComplaintDetailPanel({ complaint, onStatusChange, fleetP
         <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{copy.attachmentsTitle}</h4>
         <div className="mt-3">
           {complaint.foto_url ? (
-            <a href={complaint.foto_url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={complaint.foto_url} alt="Lampiran laporan" className="h-auto w-full object-contain" loading="lazy" />
-            </a>
+            <div className="grid grid-cols-1 gap-3">
+              <a
+                href={complaint.foto_url}
+                target="_blank"
+                rel="noreferrer"
+                className="block overflow-hidden rounded-xl border border-slate-200"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={complaint.foto_url}
+                  alt="Lampiran laporan"
+                  className="mx-auto h-64 w-auto max-w-full object-contain"
+                  loading="lazy"
+                />
+              </a>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {[1, 2].map((n) => (
