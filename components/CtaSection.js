@@ -19,7 +19,7 @@ export default function CtaSection() {
           className="absolute -top-32 left-1/2 h-64 w-[42rem] max-w-none -translate-x-1/2 rounded-full bg-white/15 blur-3xl"
         />
         <div className="relative">
-          <h2 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl">
+          <h2 className="whitespace-nowrap text-[clamp(1.25rem,5.4vw,3.75rem)] font-bold tracking-tight text-white xl:text-[4.5rem]">
             {ctaSection.headline}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/75 sm:text-xl">
