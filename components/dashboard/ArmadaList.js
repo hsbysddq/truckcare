@@ -64,16 +64,13 @@ export default function ArmadaList({ trucks }) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{copy.title}</h1>
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-1.5 text-sm font-semibold text-slate-600">
-          {trucks.length} {copy.countBadgeSuffix}
-        </span>
-      </div>
-
-      <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-8">
+      {/* Judul + subtitle tampil di top nav (dashboardNav); badge menempel di baris filter. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-8">
         <Pills label={copy.filters.statusLabel} options={statusOptions} value={status} onChange={setStatus} />
         <Pills label={copy.filters.typeLabel} options={typeOptions} value={jenis} onChange={setJenis} />
+        <span className="inline-flex items-center self-start rounded-full bg-slate-100 px-4 py-1.5 text-sm font-semibold text-slate-600 lg:ml-auto lg:self-center">
+          {trucks.length} {copy.countBadgeSuffix}
+        </span>
       </div>
 
       {filtered.length === 0 ? (

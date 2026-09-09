@@ -198,33 +198,30 @@ export default function DriverList({ rows, summary, scheduleCount }) {
   // Mode papan: halaman tidak menggulir, kolom mengisi sisa tinggi viewport.
   const modePapan = effectiveView === "board" && rows.length > 0;
   useFillViewport(modePapan);
-  const ringkasan = [
-    `${rows.length} ${copy.summaryUnit}`,
-    ...STATUS_ORDER.map((k) => `${summary?.[k] ?? 0} ${driverStatusMeta[k].label.toLowerCase()}`),
-  ].join(" · ");
 
   return (
     <div className={modePapan ? "flex min-h-0 flex-1 flex-col" : ""}>
-      <div className="flex flex-none flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{copy.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{ringkasan}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="relative flex-1 lg:w-72">
-            <span className="sr-only">{copy.searchLabel}</span>
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-              strokeWidth={1.75}
-            />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={copy.searchPlaceholder}
-              className="min-h-11 w-full rounded-full border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint"
-            />
-          </label>
+      {/* Judul + subtitle tampil di top nav (dashboardNav); toolbar kompak
+          satu baris. Hitungan per status ada di header tiap kolom papan,
+          pill filter mobile, dan badge tiap kartu daftar. */}
+      <div className="flex flex-none items-center gap-2">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">{copy.searchLabel}</span>
+          <Search
+            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            strokeWidth={1.75}
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={copy.searchPlaceholder}
+            className="min-h-11 w-full rounded-full border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-tint"
+          />
+        </label>
+        <span className="hidden flex-none rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold tabular-nums text-slate-600 sm:inline-flex">
+          {rows.length} {copy.summaryUnit}
+        </span>
           {!isSmall && (
             <div role="group" aria-label={copy.viewToggle.groupLabel} className="hidden rounded-full border border-slate-200 bg-white p-1 md:inline-flex">
               {[
@@ -247,7 +244,6 @@ export default function DriverList({ rows, summary, scheduleCount }) {
               ))}
             </div>
           )}
-        </div>
       </div>
 
       {tanpaJadwal && rows.length > 0 && (

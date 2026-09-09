@@ -78,18 +78,7 @@ export default function AnalitikDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{copy.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{copy.subtitle}</p>
-        </div>
-        <ExportCsvButton
-          data={data?.dailyTrend?.data ?? []}
-          filename={copy.exportFilename}
-          label={copy.exportButtonLabel}
-        />
-      </div>
-
+      {/* Judul + subtitle tampil di top nav (dashboardNav); ekspor menempel di bar filter. */}
       <AnalitikFilters
         rangeDays={rangeDays}
         onRangeChange={setRangeDays}
@@ -99,6 +88,13 @@ export default function AnalitikDashboard() {
         hasFilter={rangeDays !== DEFAULT_RANGE_DAYS || selectedPlates.length > 0}
         onReset={reset}
         summaryText={data?.summary?.text ?? copy.loadingLabel}
+        actions={
+          <ExportCsvButton
+            data={data?.dailyTrend?.data ?? []}
+            filename={copy.exportFilename}
+            label={copy.exportButtonLabel}
+          />
+        }
       />
 
       {error && (
