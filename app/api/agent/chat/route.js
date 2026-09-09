@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-<<<<<<< HEAD
-import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, ambilRiwayatChat } from "@/lib/supabase";
+import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, ambilRiwayatChat, getAnalyticsSourceLive } from "@/lib/supabase";
 import { getActiveTrucks } from "@/lib/trucks";
-=======
-import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, getTrucksShape, ambilRiwayatChat, getAnalyticsSourceLive } from "@/lib/supabase";
->>>>>>> aa66557ac25ea7a3ac0d6cb47df0096c33840bab
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
@@ -121,7 +117,7 @@ async function jawabanSolarAsync() {
   try {
     source = await getAnalyticsSourceLive();
   } catch {
-    source = getAnalyticsSource();
+    source = getAnalyticsSource(await getActiveTrucks());
   }
   const a = buildAnalytics(source, {});
   // Tanpa telemetri BBM tidak ada anomali yang bisa diperiksa: jawab jujur,

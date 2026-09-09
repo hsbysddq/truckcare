@@ -115,6 +115,42 @@ export default function AnalitikDashboard() {
         </div>
       )}
 
+      {!loading && empty && (
+        <div role="status" className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">{fill(copy.rangeEmpty.title, { days: rangeDays })}</p>
+            <p className="mt-0.5 text-xs">
+              {rangeDays >= Math.max(...copy.filters.ranges.map((r) => r.days)) && selectedPlates.length === 0
+                ? copy.rangeEmpty.hintNoData
+                : copy.rangeEmpty.hint}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {copy.filters.ranges
+              .filter((r) => r.days !== rangeDays)
+              .map((r) => (
+                <button
+                  key={r.days}
+                  type="button"
+                  onClick={() => setRangeDays(r.days)}
+                  className="inline-flex min-h-9 items-center rounded-full bg-white px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-100"
+                >
+                  {r.label}
+                </button>
+              ))}
+            {selectedPlates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedPlates([])}
+                className="inline-flex min-h-9 items-center rounded-full bg-white px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-100"
+              >
+                {copy.filters.resetLabel ?? "Semua armada"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 ${dimmed}`}>
         {copy.metricCards.map((card) => (
           <MetricCard

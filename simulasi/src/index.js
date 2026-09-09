@@ -190,9 +190,12 @@ async function kirimPosisi() {
 async function bersihPosisiLama() {
   try {
     const batas = new Date(Date.now() - RETENSI_HARI * 864e5).toISOString();
+    // Hanya baris milik simulator (trip_id terisi). Baris seed demo
+    // (scripts/seed.js, trip_id null) dipakai Analitik 90 hari: jangan dihapus.
     const { error, count } = await supabase
       .from('positions')
       .delete({ count: 'exact' })
+      .not('trip_id', 'is', null)
       .lt('ts', batas);
     if (error) log('ERROR', 'gagal bersih positions', { error: error.message });
     else if (count) log('INFO', 'bersih posisi lama', { count, batas_hari: RETENSI_HARI });
