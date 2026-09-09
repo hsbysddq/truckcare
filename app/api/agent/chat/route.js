@@ -38,9 +38,27 @@ async function jawabanStatusArmada() {
       const tujuan = t.destination ? ` → ${t.destination}` : "";
       return `• ${t.nama} (${t.plateNumber}): ${st}, ${kec} km/jam${tujuan}`;
     });
+    // Kartu terstruktur untuk bubble chat (teks lengkap tetap dikirim
+    // sebagai fallback riwayat, karena dataCard tak disimpan di chat_logs).
+    const kartu = {
+      title: `Status armada (${trucks.length}): ${jalan} jalan, ${berhenti} berhenti`,
+      rows: trucks.map((t) => {
+        const st = t.tripStatus ?? t.status ?? "-";
+        const kec = Math.round(Number(t.speedKph) || 0);
+        const tujuan = t.destination ? ` → ${t.destination}` : "";
+        return {
+          label: `${t.nama} (${t.plateNumber})${tujuan}`,
+          badge: {
+            tone: st === "jalan" ? "success" : "warning",
+            label: `${st} · ${kec} km/jam`,
+          },
+        };
+      }),
+    };
     return {
       text: `Status armada (${trucks.length}): ${jalan} jalan, ${berhenti} berhenti.\n${baris.join("\n")}`,
       total: trucks.length,
+      dataCard: kartu,
     };
   } catch {
     return null;
@@ -144,6 +162,7 @@ export async function POST(req) {
       return NextResponse.json({
         text: hasil.text,
         mode: "tool",
+        ...(hasil.dataCard ? { dataCard: hasil.dataCard } : {}),
         toolTrace: {
           label: "Memanggil status_armada",
           command: "status_armada()",
