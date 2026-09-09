@@ -24,9 +24,14 @@ export default function DashboardHeader({ onOpenSidebar }) {
         >
           <Menu className="h-5 w-5" strokeWidth={1.75} />
         </button>
-        <h1 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-          {title}
-        </h1>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
+            {title}
+          </h1>
+          {current?.subtitle && (
+            <p className="text-xs text-slate-500">{current.subtitle}</p>
+          )}
+        </div>
       </div>
       <button
         type="button"
