@@ -6,7 +6,7 @@
 // Pakai:
 //   node scripts/clean-orphans.js           -> dry run: hanya menghitung
 //   node scripts/clean-orphans.js --apply   -> benar-benar menghapus
-const { klien } = require("./lib-supabase-rest");
+import { klien } from "./lib-supabase-rest.js";
 
 function kunciPlat(p) {
   return String(p ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");

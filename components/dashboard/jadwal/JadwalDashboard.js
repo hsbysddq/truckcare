@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import GlossaryText from "@/components/dashboard/GlossaryText";
 import { Plus } from "lucide-react";
 import { jadwalPage, scheduleStatusMeta } from "@/lib/content";
-import { getTrucks, getDrivers } from "@/lib/data";
 import { summarizeToday } from "@/lib/schedule-analysis";
 import { iconMap } from "@/components/icon-map";
 import ScheduleTimeline from "@/components/dashboard/jadwal/ScheduleTimeline";
@@ -38,18 +37,20 @@ function rangeFor(view, now) {
   return { start, end };
 }
 
-export default function JadwalDashboard({ apiBase = "/api/schedules" }) {
+// initialTrucks / initialDrivers: dari server (getActiveTrucks + loadDrivers),
+// sumber yang sama dengan halaman Armada dan Pengemudi.
+export default function JadwalDashboard({ apiBase = "/api/schedules", initialTrucks = [], initialDrivers = [] }) {
   const copy = jadwalPage;
   const [now, setNow] = useState(() => new Date());
   const [view, setView] = useState("day");
   const [schedules, setSchedules] = useState([]);
   const [findings, setFindings] = useState([]);
-  const [trucks, setTrucks] = useState(() => getTrucks());
+  const [trucks, setTrucks] = useState(() => initialTrucks);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [modal, setModal] = useState({ open: false, initial: null });
-  const drivers = useMemo(() => getDrivers(), []);
+  const drivers = initialDrivers;
 
   const load = useCallback(async () => {
     setError(null);

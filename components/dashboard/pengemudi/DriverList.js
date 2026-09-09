@@ -45,7 +45,7 @@ function inisial(name) {
     .map((w) => w[0].toUpperCase())
     .join("");
 }
-// UUID Supabase dipendekkan; id contoh (drv-01) apa adanya.
+// UUID dipendekkan; id non-UUID apa adanya.
 function idPendek(id) {
   const s = String(id ?? "");
   return /^[0-9a-f-]{36}$/i.test(s) ? s.slice(0, 8).toUpperCase() : s;

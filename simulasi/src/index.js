@@ -5,6 +5,7 @@ import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import { RUTE } from './rute.js';
 import { posisiDiMenit, progressTrip, statusTruk } from './inti.js';
+import { seededRandom, hashSeed } from './seeded-random.js';
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -15,7 +16,11 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 
-const JUMLAH_TRUK = parseInt(process.env.ANTAR_JUMLAH_TRUK || '15', 10);
+// Truk yang disimulasikan = truk status 'aktif' di tabel trucks (identitas
+// dari scripts/fleet-data.js lewat scripts/seed.js). Simulator TIDAK lagi
+// membuat/upsert truk sendiri, sehingga jumlah armada tidak berubah-ubah.
+// Variasi kecepatan memakai generator berbenih, bukan Math.random().
+const rand = seededRandom(hashSeed(process.env.ANTAR_BENIH || 'circle-t-simulasi'));
 const INTERVAL_DETIK = parseFloat(process.env.ANTAR_INTERVAL_DETIK || '3');
 const KECEPATAN_KMJ = parseFloat(process.env.ANTAR_KECEPATAN_KMJ || '45');
 const MENIT_PER_DETIK = 1;
@@ -29,17 +34,18 @@ function log(level, msg, extra = {}) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), level, msg, ...extra }));
 }
 
-// state per truk
+// state per truk (diisi initTrips dari truk aktif di DB)
 const trukState = new Map();
-for (let i = 0; i < Math.min(JUMLAH_TRUK, RUTE.length); i++) {
-  const mentah = RUTE[i];
-  const rute = {
+const kunciPlat = (p) => String(p ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+function ruteUntukPlat(plat) {
+  const mentah = RUTE.find((r) => kunciPlat(r.truk) === kunciPlat(plat));
+  if (!mentah) return null;
+  return {
     ...mentah,
     waypoints: mentah.waypoints.map(([lat, lon, label, tiba_menit]) => ({
       lat, lon, label, tiba_menit,
     })),
   };
-  trukState.set(mentah.truk, { menit: 0, rute });
 }
 
 function kmPerMenit() {
@@ -47,31 +53,41 @@ function kmPerMenit() {
 }
 
 async function initTrips() {
-  const { data: drv, error: errDrv } = await supabase
-    .from('drivers')
-    .select('id')
+  const { data: trukAktif, error: errTrukAktif } = await supabase
+    .from('trucks')
+    .select('id, plat, nama')
+    .eq('status', 'aktif')
     .order('nama', { ascending: true })
-    .limit(100);
-  if (errDrv) throw errDrv;
-  const driverPool = drv || [];
+    .limit(200);
+  if (errTrukAktif) throw errTrukAktif;
 
-  let nomor = 1;
-  let urutan = 0;
-  for (const [plat, st] of trukState) {
-    const nama = `Truk ${nomor++}`;
-    st.driverId = driverPool[urutan++]?.id ?? null;
-    {
-      const { error: errUp } = await supabase
-        .from('trucks')
-        .upsert({ plat, nama, tipe: 'distribusi' }, { onConflict: 'plat', ignoreDuplicates: true });
-      if (errUp) throw errUp;
+  // Pengemudi tetap per truk (drivers.truck_id, supabase/drivers-truck-id.sql);
+  // bila kolom belum ada, urutan nama.
+  let driverPool = [];
+  let driverPerTruk = {};
+  {
+    const coba = await supabase.from('drivers').select('id, truck_id').order('nama', { ascending: true }).limit(200);
+    if (coba.error) {
+      const { data: drv, error: errDrv } = await supabase.from('drivers').select('id').order('nama', { ascending: true }).limit(200);
+      if (errDrv) throw errDrv;
+      driverPool = drv || [];
+    } else {
+      driverPool = coba.data || [];
+      driverPerTruk = Object.fromEntries(driverPool.filter((d) => d.truck_id).map((d) => [d.truck_id, d.id]));
     }
-    const { data: truk, error: errTruk } = await supabase
-      .from('trucks')
-      .select('id')
-      .eq('plat', plat)
-      .single();
-    if (errTruk) throw errTruk;
+  }
+
+  trukState.clear();
+  let urutan = 0;
+  for (const truk of trukAktif || []) {
+    const rute = ruteUntukPlat(truk.plat);
+    if (!rute) {
+      log('WARN', 'truk aktif tanpa rute di rute.js, dilewati', { plat: truk.plat });
+      continue;
+    }
+    const st = { menit: 0, rute };
+    trukState.set(truk.plat, st);
+    st.driverId = driverPerTruk[truk.id] ?? driverPool[urutan++ % Math.max(driverPool.length, 1)]?.id ?? null;
 
     const { data: tripAda, error: errCari } = await supabase
       .from('trips')
@@ -163,7 +179,7 @@ async function kirimPosisi() {
       continue;
     }
     const { posisi, progres } = hasil;
-    const kecepatan = posisi ? (statusTruk(st.rute.waypoints, st.menit, 1) === 'berhenti' ? 0 : KECEPATAN_KMJ * (0.8 + Math.random() * 0.4)) : 0;
+    const kecepatan = posisi ? (statusTruk(st.rute.waypoints, st.menit, 1) === 'berhenti' ? 0 : KECEPATAN_KMJ * (0.8 + rand() * 0.4)) : 0;
     const status = statusTruk(st.rute.waypoints, st.menit, kecepatan);
 
     rows.push({
@@ -220,8 +236,9 @@ async function main() {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  log('INFO', 'simulasi mulai', { truk: trukState.size, interval_detik: INTERVAL_DETIK });
   await initTrips();
+  log('INFO', 'simulasi mulai', { truk: trukState.size, interval_detik: INTERVAL_DETIK });
+  if (!trukState.size) log('WARN', 'tidak ada truk aktif yang cocok dengan rute.js; jalankan scripts/seed.js --apply');
   await kirimPosisi();
   posisiInterval = setInterval(kirimPosisi, INTERVAL_DETIK * 1000);
   // Cleanup berjalan terpisah tiap 5 menit, tidak bergantung pada tick counter

@@ -6,7 +6,7 @@
 //
 // Pakai: node scripts/inspect-data.js
 // Butuh NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY di .env.local.
-const { klien } = require("./lib-supabase-rest");
+import { klien } from "./lib-supabase-rest.js";
 
 function kunciPlat(p) {
   return String(p ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");

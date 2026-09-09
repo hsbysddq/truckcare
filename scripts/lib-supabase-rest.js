@@ -1,9 +1,10 @@
 // Helper bersama untuk script Node (scripts/*.js): muat .env.local, lalu
 // akses PostgREST Supabase dengan service role. Tanpa dependensi tambahan.
-const fs = require("node:fs");
-const path = require("node:path");
+// Semua script di folder ini ESM (scripts/package.json: type module).
+import fs from "node:fs";
+import path from "node:path";
 
-function muatEnvLocal() {
+export function muatEnvLocal() {
   const file = path.join(process.cwd(), ".env.local");
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
@@ -12,7 +13,7 @@ function muatEnvLocal() {
   }
 }
 
-function klien() {
+export function klien() {
   muatEnvLocal();
   const URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "").replace(/\/$/, "");
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -67,7 +68,6 @@ function klien() {
     return { min: awal?.[0]?.[kolom] ?? null, max: akhir?.[0]?.[kolom] ?? null };
   }
   const inList = (ids) => `(${ids.map((v) => `"${String(v).replace(/"/g, '\\"')}"`).join(",")})`;
-  return { URL, get, hitung, post, patch, del, rentang, inList };
+  return { URL, headers, get, hitung, post, patch, del, rentang, inList };
 }
 
-module.exports = { klien, muatEnvLocal };

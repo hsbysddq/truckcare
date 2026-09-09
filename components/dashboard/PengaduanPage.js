@@ -3,20 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import GlossaryText from "@/components/dashboard/GlossaryText";
 import { Search } from "lucide-react";
-import { getComplaints, getTrucks } from "@/lib/data";
+import { getComplaints } from "@/lib/data";
 import { pengaduanManagementPage } from "@/lib/content";
 import { formatTicketId, normalizePlate } from "@/lib/format";
 import ComplaintCard from "@/components/dashboard/ComplaintCard";
 import ComplaintDetailPanel from "@/components/dashboard/ComplaintDetailPanel";
 
-export default function DashboardPengaduanPage() {
+// initialTrucks: getActiveTrucks() dari server (app/dashboard/pengaduan/page.js).
+export default function DashboardPengaduanPage({ initialTrucks = [] }) {
   const [complaints, setComplaints] = useState(() => getComplaints());
   const [activeFilter, setActiveFilter] = useState("semua");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(complaints[0]?.id ?? null);
   // Plat armada untuk menjelaskan kenapa bukti telematika kosong.
   const [fleetPlates, setFleetPlates] = useState(
-    () => new Set(getTrucks().map((t) => normalizePlate(t.plateNumber)))
+    () => new Set(initialTrucks.map((t) => normalizePlate(t.plateNumber)))
   );
 
   useEffect(() => {

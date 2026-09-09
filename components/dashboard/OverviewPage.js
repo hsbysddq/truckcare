@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { getTrucks, getTruckHistory } from "@/lib/data";
+import { getTruckHistory } from "@/lib/data";
 import { overviewPage } from "@/lib/content";
 import { iconMap } from "@/components/icon-map";
 import TruckDetailPanel from "@/components/dashboard/TruckDetailPanel";
@@ -18,9 +18,11 @@ const TruckMap = dynamic(() => import("@/components/dashboard/TruckMap"), {
   ),
 });
 
-export default function DashboardOverviewPage({ driversApi = "/api/drivers" }) {
-  // Dummy dulu biar langsung tampil, timpa dengan data live kalau API balas.
-  const [trucks, setTrucks] = useState(() => getTrucks());
+// initialTrucks: hasil getActiveTrucks() dari server (app/dashboard/page.js),
+// jadi daftar armada sama persis dengan halaman Armada sejak render pertama;
+// disegarkan lewat /api/trucks (sumber yang sama) untuk posisi live.
+export default function DashboardOverviewPage({ driversApi = "/api/drivers", initialTrucks = [] }) {
+  const [trucks, setTrucks] = useState(() => initialTrucks);
   // Status pengemudi dihitung server (lib/driver-status.js); dimuat sekali
   // lalu disegarkan tiap 30 detik.
   const [drivers, setDrivers] = useState({ data: null, loading: true, error: false });

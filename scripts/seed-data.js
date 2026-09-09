@@ -1,20 +1,21 @@
-// Generator data demo Circle T (murni, tanpa I/O) dipakai scripts/seed.js.
-// Semua baris TERIKAT ke truk & pengemudi yang diberikan pemanggil (hanya
-// truk status 'aktif'), relatif terhadap tanggal hari ini (WIB), dan
-// deterministik (PRNG berbenih) sehingga seed bisa diulang dengan hasil sama.
+// Generator data TURUNAN demo Circle T (murni, tanpa I/O) dipakai
+// scripts/seed.js. Identitas armada (truk, pengemudi) TIDAK dibuat di sini:
+// pemanggil memberi FLEET_TRUCKS / FLEET_DRIVERS dari scripts/fleet-data.js.
+// Seluruh keacakan lewat lib/seeded-random.js dengan benih tetap, jadi dua
+// kali menjalankan generator menghasilkan data yang persis sama.
 //
-// Keluaran:
+// Keluaran (relatif terhadap tanggal hari ini WIB):
 //   positions  telemetri 90 hari ke belakang s.d. hari ini (trip_id null =
 //              penanda baris seed; simulator hanya menghapus baris miliknya)
 //   pengaduan  ±1 laporan/hari selama 90 hari, minimal 10 pada 7 hari terakhir,
 //              ~70% diputuskan agent, ~20% operator, ~10% perlu ditinjau;
 //              evidence.seed = true sebagai penanda
 //   agentRuns  satu run per pengaduan (started_at/finished_at masuk akal)
-//   schedules  jadwal untuk pasangan truk aktif + pengemudi (notes 'seed-demo')
-"use strict";
+//   schedules  jadwal tiap pengemudi pada truk tetapnya (notes 'seed-demo')
+import { seededRandom, randBetween, randInt, randPick } from "../lib/seeded-random.js";
 
-const HARI_RENTANG = 90;
-const BATAS_KMJ = 80;
+export const HARI_RENTANG = 90;
+export const BATAS_KMJ = 80;
 
 const KOTA = {
   Surabaya: [-7.2575, 112.7521],
@@ -59,20 +60,8 @@ const DESKRIPSI = [
   "Truk mengebut di {lokasi} saat hujan deras.",
 ];
 
-// PRNG deterministik (mulberry32).
-function prng(benih) {
-  let a = benih >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const acak = (r, min, max) => min + r() * (max - min);
-const bulat = (r, min, max) => Math.floor(acak(r, min, max + 1));
-const pilih = (r, arr) => arr[Math.floor(r() * arr.length)];
+const bulat = randInt;
+const pilih = randPick;
 function uuidDari(r) {
   const h = () => Math.floor(r() * 16).toString(16);
   const s = (n) => Array.from({ length: n }, h).join("");
@@ -103,31 +92,33 @@ function jamNgebut(r) {
   return bulat(r, 5, 23);
 }
 
-function generateSeed({ trucks, drivers, now = Date.now(), benih = 20260910 }) {
+// trucks : [{id, plat}]                 (FLEET_TRUCKS)
+// drivers: [{id, nama, truck_id}]        (FLEET_DRIVERS; truck_id = truk tetap)
+export function generateSeed({ trucks, drivers, now = Date.now(), benih = 20260910 }) {
   if (!trucks?.length) throw new Error("Tidak ada truk aktif untuk di-seed.");
-  const r = prng(benih);
+  const r = seededRandom(benih);
   const hariIni = tanggalWIB(now);
   const awalHariIni = awalHariWIB(hariIni);
   const batasTs = now - 10 * 60 * 1000; // jangan menulis ke masa depan / menimpa posisi live
-  const nT = trucks.length;
+  const trukDariId = Object.fromEntries(trucks.map((t) => [t.id, t]));
 
   const positions = [];
   const schedules = [];
   const pengaduan = [];
   const agentRuns = [];
 
-  // ---------- Jadwal (truk aktif x pengemudi) ----------
-  // Tiap pengemudi memakai satu truk pada "slot" jam tetap (05/11/17) supaya
-  // dua pengemudi pada truk yang sama tidak bertabrakan (constraint no_overlap).
+  // ---------- Jadwal: tiap pengemudi pada truk tetapnya ----------
+  // Pengemudi tanpa truck_id (atau truknya tidak aktif) dilewati. Satu
+  // pengemudi per truk, jadi tidak ada tumpang tindih (constraint no_overlap).
   const nD = drivers.length;
-  const grupA = Math.max(1, Math.round(nD * 0.4));
-  const grupB = Math.max(1, Math.round(nD * 0.33));
+  const grupA = Math.max(1, Math.round(nD * 0.6));
+  const grupB = Math.max(1, Math.round(nD * 0.27));
   const jadwalTruk = {}; // truckId -> [{depMs, arrMs, driverId}]
   drivers.forEach((d, i) => {
+    const truk = trukDariId[d.truck_id];
+    if (!truk) return;
     const rn = i + 1;
-    const truk = trucks[(rn - 1) % nT];
-    const slot = Math.floor((rn - 1) / nT) % 3; // 0,1,2 -> 05,11,17
-    const jam = 5 + slot * 6;
+    const jam = 5 + (i % 3) * 3; // 05 / 08 / 11 (variasi jam berangkat)
     let hari = [];
     if (rn <= grupA) {
       hari = [0];
@@ -168,17 +159,15 @@ function generateSeed({ trucks, drivers, now = Date.now(), benih = 20260910 }) {
       (jadwalTruk[truk.id] ||= []).push({ depMs: dep, arrMs: arr, driverId: d.id });
     }
   });
+  const pengemudiTetap = Object.fromEntries(drivers.filter((d) => d.truck_id).map((d) => [d.truck_id, d.id]));
   const pengemudiBertugas = (truckId, ms) => {
     const list = jadwalTruk[truckId] || [];
     const tepat = list.find((j) => ms >= j.depMs - 36e5 && ms <= j.arrMs + 36e5);
     if (tepat) return tepat.driverId;
-    const hari = tanggalWIB(ms);
-    const sehari = list.find((j) => tanggalWIB(j.depMs) === hari);
-    return sehari ? sehari.driverId : null;
+    return pengemudiTetap[truckId] ?? null;
   };
 
   // ---------- Telemetri harian + insiden ngebut ----------
-  const nT2 = trucks.length;
   trucks.forEach((truk, ti) => {
     for (let off = HARI_RENTANG - 1; off >= 0; off -= 1) {
       const hari0 = awalHariIni - off * 864e5;
@@ -219,7 +208,6 @@ function generateSeed({ trucks, drivers, now = Date.now(), benih = 20260910 }) {
       }
     }
   });
-  void nT2;
 
   // ---------- Pengaduan + agent_runs ----------
   // Jumlah per hari: 7 hari terakhir dijamin >= 10 laporan, sisanya 0-3/hari.
@@ -321,7 +309,6 @@ function generateSeed({ trucks, drivers, now = Date.now(), benih = 20260910 }) {
     }
   }
 
+  void randBetween;
   return { hariIni, positions, pengaduan, agentRuns, schedules };
 }
-
-module.exports = { generateSeed, HARI_RENTANG, BATAS_KMJ };

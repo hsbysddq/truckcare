@@ -16,8 +16,8 @@
 // Butuh NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY di .env.local
 // (atau di environment). Service role dipakai karena RLS menolak anon.
 
-const fs = require("node:fs");
-const path = require("node:path");
+import fs from "node:fs";
+import path from "node:path";
 
 const PLATE_PATTERN = /^[A-Z]{1,2} \d{1,4} [A-Z]{1,3}$/;
 const PLATE_FIXES = {
