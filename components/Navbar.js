@@ -54,7 +54,7 @@ export default function Navbar({ forceSolid = false }) {
           />
         </div>
 
-        <div className="hidden items-center gap-8 lg:flex">
+        <div className="hidden items-center gap-6 xl:flex 2xl:gap-8">
           {navbar.centerLinks.map((link) => (
             <a
               key={link.href}
@@ -71,7 +71,7 @@ export default function Navbar({ forceSolid = false }) {
         </div>
 
         <div className="flex flex-1 justify-end">
-          <div className="hidden items-center gap-3 lg:flex">
+          <div className="hidden items-center gap-3 xl:flex">
             <a
               href={navbar.secondaryCta.href}
               className={`inline-flex min-h-10 items-center justify-center rounded-full border px-4 py-2 text-base font-semibold transition-colors ${
@@ -93,7 +93,7 @@ export default function Navbar({ forceSolid = false }) {
           <button
             type="button"
             onClick={() => setMobileOpen((open) => !open)}
-            className={`inline-flex h-11 w-11 items-center justify-center rounded-full lg:hidden ${
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-full xl:hidden ${
               isSolid ? "text-accent" : "text-white"
             }`}
             aria-label="Buka menu navigasi"
@@ -105,7 +105,7 @@ export default function Navbar({ forceSolid = false }) {
       </nav>
 
       {mobileOpen && (
-        <div className="border-t border-slate-100 bg-white px-6 pb-6 pt-2 lg:hidden">
+        <div className="border-t border-slate-100 bg-white px-6 pb-6 pt-2 xl:hidden">
           <div className="flex flex-col gap-1">
             {navbar.centerLinks.map((link) => (
               <a
