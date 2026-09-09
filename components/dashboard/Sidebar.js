@@ -113,7 +113,7 @@ export default function Sidebar({
             onClick={handleLogout}
             title={dashboardSidebar.logoutLabel}
             className={`mt-4 flex min-h-11 items-center gap-2 rounded-full px-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-accent ${
-              sempit ? "justify-center" : ""
+              sempit ? "w-full justify-center" : ""
             }`}
           >
             <LogOut className="h-4 w-4 flex-none" strokeWidth={1.75} />
