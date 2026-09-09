@@ -57,6 +57,7 @@ const INLINE_KEYBOARD = {
 
 bot.setMyCommands([
   { command: 'start', description: 'Tampilkan tombol menu' },
+  { command: 'list', description: 'Daftar armada + plat (Jenis | Plat | Status)' },
   { command: 'status', description: 'Lihat posisi armada' },
   { command: 'rekap', description: 'Ringkasan pengaduan hari ini' },
   { command: 'pending', description: 'Pengaduan yang menunggu validasi' },
@@ -243,17 +244,25 @@ bot.onText(/\/start/, async (msg) => {
 bot.on('callback_query', async (query) => {
   const chatId = query.message?.chat.id;
   if (!chatId) return;
+  // Jawab callback dulu supaya tombol tidak menggantung (spinner) saat
+  // data armada sedang dimuat. Kalau dibiarkan menunggu, Telegram bisa
+  // menganggap tombol gagal padahal /status jalan.
+  try {
+    await bot.answerCallbackQuery(query.id);
+  } catch (e) {
+    log('ERROR', 'answerCallbackQuery gagal', { error: e.message });
+  }
   if (isRateLimited(chatId)) {
-    await bot.answerCallbackQuery(query.id, { text: 'Terlalu banyak permintaan, coba lagi nanti.' });
+    await bot.sendMessage(chatId, 'Terlalu banyak permintaan, coba lagi nanti.', { reply_markup: INLINE_KEYBOARD });
     return;
   }
   if (!(await bolehAkses(chatId))) {
-    await bot.answerCallbackQuery(query.id, { text: 'Akses ditolak.' });
+    await bot.sendMessage(chatId, 'Akses ditolak.', { reply_markup: INLINE_KEYBOARD });
     return;
   }
   const data = query.data;
   try {
-    if (data === 'status') {
+    if (data === 'status' || data === 'list') {
       const pesan = await statusArmada();
       await kirimBalasan(chatId, pesan.html, pesan.teks);
     } else if (data === 'rekap') {
@@ -262,14 +271,13 @@ bot.on('callback_query', async (query) => {
       const pesan = await pengaduanMenunggu();
       await kirimBalasan(chatId, pesan.html, pesan.teks);
     }
-    await bot.answerCallbackQuery(query.id);
   } catch (e) {
     log('ERROR', 'callback_query gagal', { data, error: e.message });
-    await bot.answerCallbackQuery(query.id, { text: 'Terjadi kesalahan.' });
+    await bot.sendMessage(chatId, 'Terjadi kesalahan.', { reply_markup: INLINE_KEYBOARD });
   }
 });
 
-bot.onText(/\/status/, async (msg) => {
+bot.onText(/\/status|\/list/, async (msg) => {
   if (!(await bolehAkses(msg.chat.id))) return;
   if (isRateLimited(msg.chat.id)) return;
   try {
