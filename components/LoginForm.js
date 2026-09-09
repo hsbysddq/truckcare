@@ -162,8 +162,6 @@ export default function LoginForm() {
         </p>
       )}
 
-      <p className="text-xs text-slate-500">{loginPage.accountHint}</p>
-
       <button
         type="submit"
         disabled={submitting || !token}
