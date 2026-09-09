@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTrucksShape } from "@/lib/supabase";
+import { getActiveTrucks } from "@/lib/trucks";
 import { listSchedules } from "@/lib/schedule-store";
 import { loadDrivers } from "@/lib/driver-data";
 import { attachCurrentDrivers } from "@/lib/driver-status";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // GET /api/trucks — daftar armada baca dari Supabase, shape nyamain lib/data.js.
 export async function GET() {
   try {
-    let trucks = await getTrucksShape();
+    let trucks = await getActiveTrucks();
     // Best-effort: pengemudi yang sedang membawa truk (dari jadwal aktif)
     // supaya nama pengemudi di Overview/Jadwal bisa ditautkan.
     try {

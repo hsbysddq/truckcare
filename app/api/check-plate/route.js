@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTrucksShape } from "@/lib/supabase";
-import { getTrucks } from "@/lib/data";
+import { getActiveTrucks } from "@/lib/trucks";
 import { plateKey } from "@/lib/format";
 
 // Pola plat tanpa spasi (input sudah dinormalisasi lewat plateKey).
@@ -55,12 +54,7 @@ function terlaluBanyak(ip) {
 async function daftarPlat() {
   const now = Date.now();
   if (store.plates && now - store.platesAt < CACHE_PLAT_MS) return store.plates;
-  let trucks;
-  try {
-    trucks = await getTrucksShape();
-  } catch {
-    trucks = getTrucks();
-  }
+  const trucks = await getActiveTrucks();
   store.plates = new Set(trucks.map((t) => plateKey(t.plateNumber)));
   store.platesAt = now;
   return store.plates;

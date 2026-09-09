@@ -2,8 +2,8 @@ import Link from "next/link";
 import GlossaryText from "@/components/dashboard/GlossaryText";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bot } from "lucide-react";
-import { getTruckById, getTruckHistory } from "@/lib/data";
-import { getTrucksShape } from "@/lib/supabase";
+import { getTruckHistory } from "@/lib/data";
+import { getActiveTrucks } from "@/lib/trucks";
 import { truckDetailPage, truckStatusMeta } from "@/lib/content";
 import TruckRouteMapLoader from "@/components/dashboard/armada/TruckRouteMapLoader";
 import TruckSpeedChart from "@/components/dashboard/armada/TruckSpeedChart";
@@ -11,14 +11,9 @@ import TruckFuelChart from "@/components/dashboard/armada/TruckFuelChart";
 
 // Truk live dari Supabase kalau id-nya ada di sana; selain itu pakai dummy.
 async function muatTruk(id) {
-  try {
-    const live = await getTrucksShape();
-    const truk = live.find((t) => t.id === id);
-    if (truk) return truk;
-  } catch {
-    // Env Supabase kosong / offline: lanjut ke dummy.
-  }
-  return getTruckById(id);
+  // Hanya truk aktif (lib/trucks.js): truk nonaktif -> 404.
+  const trucks = await getActiveTrucks();
+  return trucks.find((t) => t.id === id) ?? null;
 }
 
 function formatOdometer(km) {

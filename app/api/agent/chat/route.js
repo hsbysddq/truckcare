@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, getTrucksShape, ambilRiwayatChat } from "@/lib/supabase";
+import { catatChat, konteksArmada, statistikPengaduan, getComplaintsShape, ambilRiwayatChat } from "@/lib/supabase";
+import { getActiveTrucks } from "@/lib/trucks";
 import { getUser } from "@/lib/auth";
 import { muatTemuan } from "@/lib/schedule-findings";
 import { describeFindings } from "@/lib/schedule-analysis";
@@ -28,7 +29,7 @@ const POLA_ARMADA = /status armada|posisi armada|posisi (semua )?truk/i;
 
 async function jawabanStatusArmada() {
   try {
-    const trucks = await getTrucksShape();
+    const trucks = await getActiveTrucks();
     if (!trucks?.length) return { text: "Belum ada data armada.", total: 0 };
     const jalan = trucks.filter((t) => (t.tripStatus ?? t.status) === "jalan").length;
     const berhenti = trucks.length - jalan;
@@ -90,7 +91,7 @@ async function jawabanDriver(pesan, userId, trukKonteks) {
   if (!plat) plat = trukKonteks || null;
   if (!plat) return null;
   try {
-    const trucks = await getTrucksShape();
+    const trucks = await getActiveTrucks();
     const t = (trucks || []).find((x) => kunciPlatLokal(x.plateNumber) === kunciPlatLokal(plat));
     if (!t) return { text: `Plat ${plat} tidak terdaftar di armada.`, total: 0 };
     if (t.driverName) {
