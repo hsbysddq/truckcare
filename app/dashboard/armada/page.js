@@ -44,7 +44,7 @@ export default async function ArmadaPage() {
           <ArmadaCard
             key={truck.id}
             truck={truck}
-            name={truck.nama ?? `Truk ${String(index + 1).padStart(2, "0")}`}
+            name={truck.model ?? truck.nama ?? `Truk ${String(index + 1).padStart(2, "0")}`}
           />
         ))}
       </div>
