@@ -23,6 +23,7 @@ import { klien } from "./lib-supabase-rest.js";
 import { generateSeed } from "./seed-data.js";
 import { FLEET_TRUCKS, FLEET_DRIVERS, fleetTruckRows, fleetDriverRows } from "./fleet-data.js";
 import { periksaArmada, cetakLaporan } from "./verify-fleet.js";
+import { BATAS_KECEPATAN_KPJ, melebihiBatas } from "../lib/speed-limit.js";
 
 const kunci = (p) => String(p ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 const namaKunci = (n) => String(n ?? "").trim().toLowerCase();
@@ -132,9 +133,13 @@ async function main() {
   // ---------- 2. Data turunan ----------
   const seed = generateSeed({ trucks: FLEET_TRUCKS, drivers: FLEET_DRIVERS, now: Date.now() });
   const agent = seed.pengaduan.filter((p) => p.decided_by === "agent").length;
-  const ngebut = seed.positions.filter((p) => p.kecepatan > 80).length;
+  const titikNgebut = seed.positions.filter((p) => melebihiBatas(p.kecepatan)).length;
+  const insiden7 = seed.insiden.filter((e) => Date.now() - new Date(e.mulai).getTime() <= 7 * 864e5).length;
+  const trukInsiden = Object.entries(seed.insiden.reduce((m, e) => ((m[e.plat] = (m[e.plat] ?? 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
   console.log(`\n== Data turunan (hari ini WIB ${seed.hariIni}) ==`);
-  console.log(`  positions  ${seed.positions.length} (insiden > 80 km/jam: ${ngebut})`);
+  console.log(`  positions  ${seed.positions.length} (titik > ${BATAS_KECEPATAN_KPJ} km/jam: ${titikNgebut})`);
+  console.log(`  insiden    ${seed.insiden.length} episode ngebut (${insiden7} dalam 7 hari terakhir); per truk: ${trukInsiden.map(([p, n]) => `${p} ${n}`).join(", ")}`);
+  console.log(`  pengaduan valid terkait insiden: ${seed.pengaduan.filter((p) => p.status === "valid" && p.evidence?.incidentStart).length} dari ${seed.pengaduan.filter((p) => p.status === "valid").length}`);
   console.log(`  pengaduan  ${seed.pengaduan.length} (diputuskan agent ${Math.round((agent / seed.pengaduan.length) * 100)}%)`);
   console.log(`  agent_runs ${seed.agentRuns.length}`);
   console.log(`  schedules  ${seed.schedules.length}`);

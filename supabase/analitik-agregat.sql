@@ -35,30 +35,59 @@ as $$
   where t.status = 'aktif';
 $$;
 
--- Insiden ngebut per (hari WIB, jam WIB, truk): jumlah + titik rata-rata.
+-- Insiden ngebut per (hari WIB, jam WIB, truk). Satu INSIDEN = episode:
+-- titik telemetri > batas yang berturutan dengan jeda <= 5 menit (sama dengan
+-- kelompokkanInsiden di lib/speed-limit.js). Jadi periode ngebut beberapa
+-- titik dihitung satu, bukan per baris.
+-- Ambang 80 = BATAS_KECEPATAN_KPJ (lib/speed-limit.js), perbandingan '>',
+-- ditulis literal supaya indeks parsial idx_positions_ngebut_ts terpakai.
 -- p_hari = jendela ke belakang (periode + pembanding periode sebelumnya).
-create or replace function analitik_ngebut(p_hari int default 180, p_batas numeric default 80)
+drop function if exists analitik_ngebut(int, numeric);
+create or replace function analitik_ngebut(p_hari int default 180)
 returns table (
-  tanggal date,
-  jam     int,
-  truk_id uuid,
-  jumlah  bigint,
-  lat     double precision,
-  lon     double precision
+  tanggal        date,
+  jam            int,
+  truk_id        uuid,
+  jumlah         bigint,
+  lat            double precision,
+  lon            double precision,
+  kecepatan_maks double precision
 )
 language sql stable
 as $$
+  with titik as (
+    select
+      p.truk_id, p.ts, p.lat, p.lon, p.kecepatan,
+      case
+        when p.ts - lag(p.ts) over (partition by p.truk_id order by p.ts) > interval '5 minutes' then 1
+        else 0
+      end as episode_baru
+    from positions p
+    join trucks t on t.id = p.truk_id and t.status = 'aktif'
+    where p.kecepatan > 80
+      and p.ts >= now() - make_interval(days => p_hari)
+  ),
+  episode as (
+    select
+      truk_id, ts, lat, lon, kecepatan,
+      sum(episode_baru) over (partition by truk_id order by ts rows unbounded preceding) as no_episode
+    from titik
+  ),
+  ringkas as (
+    select truk_id, no_episode,
+           min(ts) as mulai, avg(lat) as lat, avg(lon) as lon, max(kecepatan) as kecepatan_maks
+    from episode
+    group by truk_id, no_episode
+  )
   select
-    (p.ts at time zone 'Asia/Jakarta')::date            as tanggal,
-    extract(hour from p.ts at time zone 'Asia/Jakarta')::int as jam,
-    p.truk_id,
-    count(*)                                             as jumlah,
-    avg(p.lat)                                           as lat,
-    avg(p.lon)                                           as lon
-  from positions p
-  join trucks t on t.id = p.truk_id and t.status = 'aktif'
-  where p.kecepatan > p_batas
-    and p.ts >= now() - make_interval(days => p_hari)
+    (mulai at time zone 'Asia/Jakarta')::date                as tanggal,
+    extract(hour from mulai at time zone 'Asia/Jakarta')::int as jam,
+    truk_id,
+    count(*)                                                 as jumlah,
+    avg(lat)                                                 as lat,
+    avg(lon)                                                 as lon,
+    max(kecepatan_maks)                                      as kecepatan_maks
+  from ringkas
   group by 1, 2, 3
   order by 1 desc, 2;
 $$;
@@ -111,7 +140,7 @@ as $$
 $$;
 
 grant execute on function posisi_terakhir() to anon, authenticated, service_role;
-grant execute on function analitik_ngebut(int, numeric) to anon, authenticated, service_role;
+grant execute on function analitik_ngebut(int) to anon, authenticated, service_role;
 grant execute on function analitik_pengaduan_harian(int) to anon, authenticated, service_role;
 grant execute on function analitik_validasi_harian(int) to anon, authenticated, service_role;
 

@@ -186,6 +186,8 @@ export default function AnalitikDashboard() {
         <ChartCard
           title={copy.charts.hourDistribution.title}
           subtitle={copy.charts.hourDistribution.subtitle}
+          emptyTitle={copy.charts.hourDistribution.emptyTitle}
+          emptyHint={copy.charts.hourDistribution.emptyHint}
           insight={data?.hourDistribution?.insight}
           loading={loading}
           empty={empty || data?.hourDistribution?.empty}
@@ -198,6 +200,8 @@ export default function AnalitikDashboard() {
         <ChartCard
           title={copy.charts.speedingByPlate.title}
           subtitle={copy.charts.speedingByPlate.subtitle}
+          emptyTitle={copy.charts.speedingByPlate.emptyTitle}
+          emptyHint={copy.charts.speedingByPlate.emptyHint}
           insight={data?.speedingByPlate?.insight}
           loading={loading}
           empty={empty || data?.speedingByPlate?.empty}

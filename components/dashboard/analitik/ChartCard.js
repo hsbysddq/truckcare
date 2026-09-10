@@ -10,6 +10,10 @@ export default function ChartCard({
   loading = false,
   empty = false,
   action,
+  // Pesan kosong khusus grafik (mis. "Tidak ada pelanggaran kecepatan
+  // tercatat pada periode ini"); default pesan umum analitikPage.empty.
+  emptyTitle = analitikPage.empty.title,
+  emptyHint = analitikPage.empty.hint,
   children,
 }) {
   return (
@@ -28,10 +32,8 @@ export default function ChartCard({
         ) : empty ? (
           <div className="flex h-72 flex-col items-center justify-center rounded-xl bg-slate-50 px-6 text-center">
             <SearchX className="h-6 w-6 text-slate-400" strokeWidth={1.75} />
-            <p className="mt-3 text-sm font-semibold text-slate-700">
-              {analitikPage.empty.title}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">{analitikPage.empty.hint}</p>
+            <p className="mt-3 text-sm font-semibold text-slate-700">{emptyTitle}</p>
+            <p className="mt-1 text-xs text-slate-500">{emptyHint}</p>
           </div>
         ) : (
           children
