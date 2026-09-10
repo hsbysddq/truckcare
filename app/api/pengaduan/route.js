@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { tulis } from "@/lib/supabase";
 import { analyzeComplaint } from "@/lib/complaint-analysis";
+import { kirimNotifikasiPengaduan } from "@/lib/telegram";
 import { isValidPlate, normalizePlate } from "@/lib/format";
 
 // Verifikasi Turnstile sebelum insert (gating, bukan replace). Host yang
@@ -94,13 +95,21 @@ export async function POST(req) {
     });
     const baris = Array.isArray(rows) ? rows[0] : rows;
     // Analisis otomatis segera setelah respons dikirim (server-side); daftar
-    // dashboard menampilkan "Sedang dianalisis" sampai selesai.
+    // dashboard menampilkan "Sedang dianalisis" sampai selesai. Notifikasi
+    // Telegram ke semua chat terdaftar juga best-effort lewat after().
     if (baris?.id) {
       after(async () => {
         try {
           await analyzeComplaint(baris.id, { trigger: "otomatis" });
         } catch {
           // Status gagal sudah dicatat oleh analyzeComplaint.
+        }
+      });
+      after(async () => {
+        try {
+          await kirimNotifikasiPengaduan({ plat, tanggal, jam, deskripsi });
+        } catch {
+          // Pengaduan sudah tersimpan; notifikasi gagal = diam saja.
         }
       });
     }
