@@ -15,6 +15,11 @@ Service di VPS: simulasi GPS, OpenClaw skill server, bot Telegram.
 | antar-simulasi | - | `antar-simulasi.service` | GPS simulation, kirim posisi ke Supabase |
 | antar-skill | 8765 | `antar-skill.service` | OpenClaw HTTP server |
 | antar-telegram | - | `antar-telegram.service` | Bot Telegram polling |
+| antar-notif | - | `antar-notif.service` / timer | Notifikasi harian via `telegram/src/notif-harian.js` |
+
+> Catatan (Sep 2026): setelah refactor armada, `simulasi/src/seeded-random.js`
+> ikut dibutuhkan (belum tentu ada di VPS lama). Kalau antar-simulasi gagal
+> `ERR_MODULE_NOT_FOUND`, salin juga file baru tsb, lalu restart.
 
 ## Setup Awal
 

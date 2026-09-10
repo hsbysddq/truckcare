@@ -1,74 +1,120 @@
 # Handoff TruckCare (Circle T)
 
-Terakhir diperbarui: 8 Sep 2026. Repo web lomba AI HackFest 2026
+Terakhir diperbarui: 10 Sep 2026. Repo web lomba AI HackFest 2026
 (submit 30 Sep). Scope repo ini: website + modul VPS (openclaw, simulasi,
 telegram). Video demo + artikel lomba dikerjakan PIC lain, bukan di sini.
 
-## Yang sudah jalan
+## Yang sudah jalan (per 10 Sep 2026)
 
-- Landing Circle T, login **Supabase Auth (email/password)**, dashboard:
-  Overview, Armada, Chat AI, Peta, Pengaduan, Analitik, Pengaturan.
-- Form pengaduan publik `/pengaduan` (anonim, upload foto opsional).
-- Chat AI via OpenClaw di VPS (`OPENCLAW_ENDPOINT`), fallback luring.
-  - Riwayat chat **persisten per user** (kolom `user_id` di `chat_logs`),
-    `GET /api/agent/chat` mengembalikan history user login.
-  - Konteks armada (driver + trip berjalan) disertakan ke OpenClaw supaya
-    jawaban AI menyebut data aktual (best-effort: gagal = chat tetap jalan).
-- Bot Telegram: tombol Status Armada, Rekap Hari Ini, Pengaduan Menunggu;
-  akses dibatasi allowlist tabel `bot_akses` (owner bootstrap via
-  `TELEGRAM_CHAT_ID`). Status Armada tampil sebagai tabel monospace
-  (`<pre>`, fallback teks polos kalau parse HTML gagal).
-  Logika data bot disamakan dengan web: ambang jalan > 5 km/jam, limit
-  positions 200, trip berjalan pilih `mulai` terbaru per truk.
-- Sinkron bot vs peta (8 Sep): `baca()` pakai `cache: no-store`,
-  `/api/trucks` = `force-dynamic`, Overview polling 5 detik seperti Peta.
-  Catatan: ID 19 digit (`53709590...`) bukan chat ID valid (user ID cuma
-  9-10 digit) — ambil ID benar dari log `journalctl -u antar-telegram`.
-- Analitik: tren + metrik pengaduan dan insiden ngebut live dari Supabase.
-  Chart solar masih contoh (skema belum punya data BBM).
-- **Akun login:** `admin@circlet.id` / `circleT2026` (data dummy, ganti bebas).
-- **Pengaturan OpenClaw:** tombol Periksa Ulang Koneksi + panduan langkah
-  non-teknis bila terputus.
-- Sidebar collapsible (icon-only), logout Supabase, nama user asli dari session.
+- Landing Circle T, login **Supabase Auth (email/password)** + Turnstile,
+  dashboard: Overview, Armada, Chat AI, Peta, Pengaduan, Analitik, Pengaturan.
+- Form pengaduan publik `/pengaduan` (anonim, captcha Turnstile, insert lewat
+  `POST /api/pengaduan` terverifikasi; policy insert publik dicabut).
+- Chat AI: tool lokal deterministik (jadwal, statistik pengaduan, daftar
+  tunggu, anomali solar, status armada + kartu, driver_truk dengan resolusi
+  "truck itu", kondisi_truk per plat), fallback OpenClaw VPS. Konteks truk
+  aktif dari halaman truk (?truk=PLAT): saran cepat menyertakan plat dan
+  jawaban diarahkan ke truk itu. Riwayat persisten per user + tombol hapus
+  riwayat. System prompt editable di Pengaturan (tabel `settings`, kunci
+  `agent_prompt`).
+- Bot Telegram: tabel Status Armada kolom Jenis + Plat (bukan penomoran
+  "Truk NN"), link peta, `/list` dan `/detail <plat>`; tombol inline
+  (Status Armada / Rekap Hari Ini / Pengaduan Menunggu); allowlist
+  `bot_akses`. Rate limit 30/menit non-owner, owner bebas batas.
+- Armada: 15 truk Jatim, jenis asli di list (6 CDD, 5 Fuso, 4 Trailer),
+  shift 1 truk = 1 driver, detail lengkap (pengemudi, odometer & solar
+  simulasi, progres hidup dari trip), filter status/jenis.
+- Jadwal + Pengemudi sinkron simulasi (tabel `schedules` dipelihara sim;
+  sim hanya menimpa jadwal ber-`actual_departure` miliknya, jadwal manual
+  admin di halaman Jadwal tidak dihapus).
+- Analitik 100% live: tren aduan, ngebut >80, waktu validasi riil, dan
+  solar dari tabel `fuel_readings` (seed 90 hari, 5 anomali terdeteksi).
+- Pengaduan: analisis otomatis berbasis kode (teman), kolom
+  keputusan/catatan/analisis lengkap, UUID divalidasi di route.
+- Pengaturan: tab navigasi (Akun / Bot Telegram / AI Agent), card akun.
 
-## PR (semua merged ke master per 8 Sep 2026)
+## PR merged (#8-#37, sesi 9-10 Sep)
 
-- #3 merged: data layer + form pengaduan publik.
-- #4 merged: halaman peta live (+ fix review: kosongkan saat sumber mati,
-  lastUpdate dari positions.ts).
-- #5 merged: analitik live (+ fix review: CSV aman browser, komentar
-  server-only).
-- #6 merged: halaman Pengaturan + allowlist bot Telegram (+ fix review:
-  API digate login, validasi UUID, bot lempar error).
-- #7 merged: login Supabase Auth + riwayat chat per user + status VPS.
-  Temuan review Copilot di ketiganya sudah dibereskan sebelum merge.
+#8 keterangan model AI, #9 link peta bot + Turnstile pengaduan, #10
+simulasi 15 truk + shift, #11 tabel pengaduan bot + captcha login +
+system prompt, #12 sidebar expand, #13 statistik pengaduan chat, #14
+pengaturan seksi, #15 foto bukti fixed, #16 sinkron jadwal, #17 tab
+pengaturan, #18 detail armada, #19 logout sejajar, #20 kolom telegram +
+guard Leaflet, #21 progres + hapus chat, #22 jenis truk, #23 solar +
+pending chat, #25 fix 500 pengaduan, #27 closed (duplikat fix armada),
+#28 status armada chat, #29 kartu armada chat, #30 driver chat, #31
+analitik live, #32 BBM live.
+
+#33 rate limit bot (owner bebas limit, default 30/menit) + cleanup widget
+Turnstile saat unmount. #34 chat jawab per plat + bot pakai jenis+plat &
+`/detail <plat>` + sim hanya hapus jadwal miliknya (jadwal manual admin
+bertahan). #35 saran & jawaban chat mengikuti konteks truk aktif (?truk).
+#36 tombol inline Telegram tidak menggantung (answerCallbackQuery lebih
+dulu) + command `/list`. #37 jawaban kondisi_truk dibedakan per intent
+(posisi / status / rekap / rangkum) + dataCard.
+
+Aturan: PR minta izin dulu sebelum merge (sudah ada kesepakatan konteks
+"merge kalau tidak konflik & sudah di commit terbaru").
 
 ## Env yang wajib ada
 
-Lihat `.env.local.example` (web) dan `telegram/.env.example` (bot).
-Di Vercel Production wajib: `OPENCLAW_ENDPOINT`,
-`SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`. Setiap tambah env: Redeploy.
+Lihat `.env.local.example`. Di Vercel Production wajib:
+`OPENCLAW_ENDPOINT`, `SUPABASE_SERVICE_ROLE_KEY`,
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`,
+`TURNSTILE_HOSTNAMES=circletindonesia.vercel.app`. Setiap tambah env:
+Redeploy. Domain prod: `circletindonesia.vercel.app` (bukan
+`truckcare.vercel.app` — itu app orang lain).
 
-## VPS (aktif batch 2: 6-10 Sep)
+## VPS (`103.30.146.216:4422`, root)
 
-- `103.30.146.216:4422`, root. Service: antar-simulasi, antar-skill
-  (OpenClaw `:8765`), antar-telegram. Deploy bot: salin
-  `telegram/src/index.js` + `telegram/src/tabel.js` (baru, 8 Sep) ke
-  `/opt/antar/telegram/src/`, restart service.
-- 10 Sep: backup (dump DB, zip modul) lalu matikan rapi.
+- Service: antar-simulasi (15 truk + schedules + driver, JUMLAH=15),
+  antar-skill (OpenClaw `:8765`), antar-telegram (tabel + link peta),
+  antar-notif. Deploy manual: scp file → `/opt/antar/...` → restart.
+- Sesi 9-10 Sep: antar-telegram & antar-simulasi sudah di-restart ke versi
+  master terbaru (telegram index.js+tabel.js, simulasi index.js +
+  seeded-random.js yang baru dari refactor armada teman).
+- Batch berakhir 10 Sep: backup (dump DB, zip modul) lalu matikan rapi.
+- AI lokal (Ollama model kecil) direkomendasikan, BELUM dipasang
+  (tunggu koordinasi pemilik VPS). Spesifikasi: 4 vCPU, 3.8 GB RAM.
 
 ## SQL yang sudah dijalankan di Supabase
 
 `schema.sql`, `rls.sql`, `storage.sql`, `seed.sql`, `bot-akses.sql`,
-`chat-logs-user.sql` (kolom `user_id` + index di `chat_logs`).
+`chat-logs-user.sql`, `migrasi-plat-jatim.sql`, `seed-dummy-15-30.sql`
+(15 truk + 30 driver), `cabut-insert-publik.sql`,
+`pengaduan-keputusan.sql`, `pengaduan-catatan-array.sql`,
+`pengaduan-analisis.sql`, `agent-settings.sql`, `fuel-readings.sql`
+(1350 baris). BELUM dijalankan (jangan, tanpa koordinasi):
+`trucks-jenis.sql` (membuat 20 truk, simulasi cuma 15 rute).
+
+## Gotcha (pelajaran sesi ini)
+
+- Cache Turbopack menyembunyikan error build — verifikasi jujur:
+  `rm -rf .next` atau build tanpa `.env.local`.
+- Halaman dynamic lolos build tapi 500 saat dibuka (kasus
+  `/dashboard/armada` pasca-merge).
+- PostgREST `max-rows` 1000 memotong diam-diam — paginasi bila >1000.
+- Jangan `pkill -f <pola>` satu baris dengan perintah lain (bunuh shell
+  sendiri). Jangan `git checkout <branch> -- <file>` sembarangan
+  (menimpa worktree).
+- Repo dipakai dua sesi bersamaan — commit cepat, jangan reset branch
+  orang, jangan ambil alih branch `feat/*` yang bukan milikmu.
+- Turnstile tidak render di browser otomatis (wajar); user asli normal.
+- MCP Supabase terpasang di opencode (remote, OAuth) untuk kerja DB.
+- Tombol inline Telegram terasa "mati" bila `answerCallbackQuery` dipanggil
+  SETELAH memuat data (query + kirim pesan bisa lewat batas tunggu) — jawab
+  callback lebih dulu, lalu kirim hasil.
+- Refactor besar di master (mis. `4db6bcd` analitik + cache) bisa membuat
+  PR fix lama pada file sama menjadi superseded — saat konflik, bandingkan
+  kedua versi; kadang hasil yang benar adalah versi master terbaru.
+- Dua PR yang mengubah file sama (`telegram/src/index.js`) perlu di-merge
+  berurutan dan di-rebase/merge master antar-PR, bukan merge paralel.
 
 ## Rencana ke depan (belum dikerjakan)
 
-- Login Google via Supabase Auth (butuh OAuth client Google + enable
-  provider di dashboard Supabase, lalu kode: `@supabase/ssr`, callback,
-  middleware session beneran).
-- Captcha Turnstile di form pengaduan + pindah insert lewat route
-  `POST /api/pengaduan` terverifikasi, cabut policy
-  `pengaduan_insert_publik`.
+- Login Google: TIDAK PERLU (keputusan user).
 - Panel Aktivitas Agent + grafik kecepatan per truk: masih dummy.
+- VPS batch berakhir 10 Sep: backup (dump DB, zip modul) lalu matikan rapi.
+- Koordinasi dengan teman: `trucks-jenis.sql`, fitur analisis pengaduan
+  miliknya (kolom evidence), dan halaman Pengemudi/Jadwal barunya.
