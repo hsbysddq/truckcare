@@ -20,7 +20,7 @@
 // pengaduan-keputusan.sql, pengaduan-alasan-catatan.sql, pengaduan-analisis.sql,
 // pengaduan-diputuskan-oleh.sql, trucks-jenis.sql, drivers-truck-id.sql.
 import { klien } from "./lib-supabase-rest.js";
-import { generateSeed } from "./seed-data.js";
+import { generateSeed, periksaJaminan } from "./seed-data.js";
 import { FLEET_TRUCKS, FLEET_DRIVERS, fleetTruckRows, fleetDriverRows } from "./fleet-data.js";
 import { periksaArmada, cetakLaporan } from "./verify-fleet.js";
 import { BATAS_KECEPATAN_KPJ, melebihiBatas } from "../lib/speed-limit.js";
@@ -144,6 +144,17 @@ async function main() {
   console.log(`  agent_runs ${seed.agentRuns.length}`);
   console.log(`  schedules  ${seed.schedules.length}`);
 
+  // ---------- Jaminan insiden kecepatan (scripts/seed-data.js) ----------
+  const jaminan = periksaJaminan(seed, Date.now());
+  console.log("\n== Jaminan insiden kecepatan ==");
+  for (const [nama, nilai, syarat, ok] of jaminan.cek) {
+    console.log(`  ${ok ? "OK   " : "GAGAL"} ${nama}: ${nilai} (syarat ${syarat})`);
+  }
+  if (!jaminan.lulus) {
+    console.error("\nJAMINAN TIDAK TERPENUHI: generator perlu diperbaiki; seed tidak ditulis.");
+    process.exit(1);
+  }
+
   const lamaRuns = await db.hitung("agent_runs", "?notes=eq.seed-demo").catch(() => null);
   const lamaAduan = await db.hitung("pengaduan", "?evidence->>seed=eq.true").catch(() => null);
   const lamaPos = await db.hitung("positions", "?trip_id=is.null");
@@ -169,6 +180,16 @@ async function main() {
   // ---------- 3. Verifikasi ----------
   console.log("\n== Verifikasi konsistensi ==");
   cetakLaporan(await periksaArmada(db));
+
+  // ---------- Ringkasan akhir jaminan insiden ----------
+  const h = jaminan.hasil;
+  console.log("\n== Ringkasan insiden kecepatan (ditulis) ==");
+  console.log(`  insiden 7 / 30 / 90 hari : ${h.insiden7} / ${h.insiden30} / ${h.insiden90}`);
+  console.log(`  truk terlibat            : ${h.trukTerlibat}`);
+  console.log(`  jam kerja tanpa insiden  : ${h.jamKosong.length ? h.jamKosong.join(", ") : "tidak ada"}`);
+  console.log(`  pengaduan valid terkait  : ${h.validCocok} dari ${h.validTotal}`);
+  console.log(`  pengaduan ditolak saat truk diam: ${h.ditolakDiam} dari ${h.ditolakTotal}`);
+  console.log(jaminan.lulus ? "  SEMUA JAMINAN TERPENUHI." : "  ADA JAMINAN YANG GAGAL (lihat di atas).");
 }
 
 main().catch((e) => {

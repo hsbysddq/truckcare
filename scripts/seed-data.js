@@ -12,8 +12,22 @@
 //              evidence.seed = true sebagai penanda
 //   agentRuns  satu run per pengaduan (started_at/finished_at masuk akal)
 //   schedules  jadwal tiap pengemudi pada truk tetapnya (notes 'seed-demo')
+//   insiden    episode ngebut yang DIJAMIN (lihat JAMINAN di bawah), bukan
+//              hasil keberuntungan acak; periksaJaminan() memverifikasinya
+
+// JAMINAN insiden kecepatan setiap seed (diperiksa periksaJaminan):
+export const JAMINAN = {
+  insiden7Hari: 3,
+  insiden30Hari: 12,
+  totalMin: 30,
+  totalMaks: 40,
+  trukTerlibatMin: 8,
+  jamKerja: [6, 22], // tiap jam 06-22 punya >= 1 insiden dalam 90 hari
+  pengaduanValidTerkaitMin: 12,
+};
 import { seededRandom, randBetween, randInt, randPick } from "../lib/seeded-random.js";
-import { BATAS_KECEPATAN_KPJ } from "../lib/speed-limit.js";
+import { BATAS_KECEPATAN_KPJ, kelompokkanInsiden, melebihiBatas } from "../lib/speed-limit.js";
+import { FLEET_SPEEDING_PROFILE } from "./fleet-data.js";
 
 export const HARI_RENTANG = 90;
 // Ambang dari satu sumber (lib/speed-limit.js).
@@ -187,45 +201,101 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
     }
   });
 
-  // ---------- Insiden ngebut (episode beberapa titik berturutan) ----------
-  // ~25-35 insiden sepanjang 90 hari, 3 dijamin dalam 7 hari terakhir.
-  // Tidak merata: 5 truk "berat" menyumbang ~75%; jam lebih sering siang
-  // menjelang sore (13-16) dan malam (20-23). Kecepatan 85-120 km/jam,
-  // 4-7 titik berjarak 30 detik, diapit titik konteks < batas.
-  const insiden = [];
-  const trukBerat = [0, 2, 4, 9, 12].filter((i) => i < trucks.length).map((i) => trucks[i]);
-  const pilihTrukInsiden = () => (trukBerat.length && r() < 0.75 ? pilih(r, trukBerat) : pilih(r, trucks));
-  const jamInsiden = () => {
+  // ---------- Insiden ngebut: kuota per truk (timpang, tetap) ----------
+  // 3 penyumbang terbesar 5-8, 5 menengah 2-4, sisanya 0-1
+  // (FLEET_SPEEDING_PROFILE di fleet-data.js). Total dipaksa ke rentang
+  // JAMINAN.totalMin..totalMaks; 8 truk pertama selalu >= 2 sehingga jumlah
+  // truk terlibat >= 8.
+  const platKe = (plat) => trucks.find((t) => t.plat === plat);
+  const trukBerat = FLEET_SPEEDING_PROFILE.berat.map(platKe).filter(Boolean);
+  const trukMenengah = FLEET_SPEEDING_PROFILE.menengah.map(platKe).filter(Boolean);
+  const trukLain = trucks.filter((t) => !trukBerat.includes(t) && !trukMenengah.includes(t));
+  const kuota = new Map();
+  for (const t of trukBerat) kuota.set(t.id, bulat(r, 5, 8));
+  for (const t of trukMenengah) kuota.set(t.id, bulat(r, 2, 4));
+  for (const t of trukLain) kuota.set(t.id, r() < 0.4 ? 1 : 0);
+  const totalKuota = () => [...kuota.values()].reduce((x, y) => x + y, 0);
+  for (let i = 0; totalKuota() < JAMINAN.totalMin; i += 1) {
+    const t = i % 2 === 0 ? trukBerat[i % trukBerat.length] : trukMenengah[i % trukMenengah.length];
+    const maks = trukBerat.includes(t) ? 8 : 4;
+    if (kuota.get(t.id) < maks) kuota.set(t.id, kuota.get(t.id) + 1);
+    else if (i > 100) break;
+  }
+  for (let i = 0; totalKuota() > JAMINAN.totalMaks; i += 1) {
+    const kandidat = [...trukLain, ...trukMenengah, ...trukBerat].find((t) => {
+      const min = trukBerat.includes(t) ? 5 : trukMenengah.includes(t) ? 2 : 0;
+      return kuota.get(t.id) > min;
+    });
+    if (!kandidat) break;
+    kuota.set(kandidat.id, kuota.get(kandidat.id) - 1);
+  }
+  const totalInsiden = totalKuota();
+
+  // ---------- Slot waktu: hari & jam (timpang, tapi tiap jam kerja terisi) ----------
+  // Hari: >= 3 dalam 7 hari (off 1,3,5), >= 12 dalam 30 hari, sisanya 1..89.
+  // Jam: satu insiden untuk tiap jam 06-22 dulu (17 slot), sisanya berbobot
+  // 13-16 dan 19-22. Hari ini (off 0) dihindari supaya tidak ke masa depan.
+  const [jamAwal, jamAkhir] = JAMINAN.jamKerja;
+  const jamBerbobot = () => {
     const x = r();
-    if (x < 0.45) return bulat(r, 13, 16);
-    if (x < 0.8) return bulat(r, 20, 23);
-    return bulat(r, 5, 23);
+    if (x < 0.4) return bulat(r, 13, 16);
+    if (x < 0.75) return bulat(r, 19, 22);
+    return bulat(r, jamAwal, jamAkhir);
   };
+  const slotHari = [];
+  for (let i = 0; i < totalInsiden; i += 1) {
+    if (i < JAMINAN.insiden7Hari) slotHari.push([1, 3, 5][i % 3]);
+    else if (i < JAMINAN.insiden30Hari) slotHari.push(bulat(r, 7, 29));
+    else slotHari.push(bulat(r, 1, HARI_RENTANG - 1));
+  }
+  const slotJam = [];
+  for (let i = 0; i < totalInsiden; i += 1) {
+    slotJam.push(i <= jamAkhir - jamAwal ? jamAwal + i : jamBerbobot());
+  }
+  // Kocok pasangan (hari, jam) secara deterministik lalu bagikan ke truk
+  // sesuai kuota; jaminan tidak bergantung pada truk mana yang dapat slot.
+  const slot = slotHari.map((off, i) => ({ off, jam: slotJam[i] }));
+  for (let i = slot.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(r() * (i + 1));
+    [slot[i], slot[j]] = [slot[j], slot[i]];
+  }
+  const urutanTruk = [];
+  for (const t of [...trukBerat, ...trukMenengah, ...trukLain]) {
+    for (let k = 0; k < kuota.get(t.id); k += 1) urutanTruk.push(t);
+  }
+
+  const insiden = [];
   const titikPosisi = (truk, rute, frac, kec, ms) => ({
     trip_id: null,
     truk_id: truk.id,
     lat: +titikRute(rute, Math.min(1, Math.max(0, frac))).lat.toFixed(5),
     lon: +titikRute(rute, Math.min(1, Math.max(0, frac))).lon.toFixed(5),
     kecepatan: kec,
-    status: "jalan",
+    status: kec > 0 ? "jalan" : "berhenti",
     ts: iso(ms),
   });
-  const buatInsiden = ({ truk, off, jam, menit, puncakMin = 85, puncakMaks = 120 }) => {
+  // Satu insiden = 3-6 titik berturutan (30 detik) > batas, memuncak di
+  // tengah 95-120 km/jam lalu turun; diapit titik konteks < batas.
+  const buatInsiden = ({ truk, off, jam, menit }) => {
     const hari0 = awalHariIni - off * 864e5;
-    const mulaiMs = hari0 + jam * 36e5 + menit * 6e4;
-    if (mulaiMs + 4 * 60e3 > batasTs) return null; // jangan ke masa depan
+    let mulaiMs = hari0 + jam * 36e5 + menit * 6e4;
+    // Jangan bertabrakan (< 10 menit) dengan insiden lain truk yang sama.
+    const milik = insiden.filter((e) => e.truk.id === truk.id);
+    while (milik.some((e) => Math.abs(e.mulaiMs - mulaiMs) < 10 * 6e4)) mulaiMs += 20 * 6e4;
+    if (mulaiMs + 4 * 60e3 > batasTs) return null;
     const rute = RUTE[(trucks.indexOf(truk) + off) % RUTE.length];
     const frac0 = 0.1 + r() * 0.7;
-    const n = bulat(r, 4, 7);
-    const puncak = bulat(r, puncakMin, puncakMaks);
+    const n = bulat(r, 3, 6);
+    const puncak = bulat(r, 95, 120);
+    const tengah = (n - 1) / 2;
     const titik = [];
     for (let k = 0; k < n; k += 1) {
-      // Profil naik ke puncak lalu turun; semua titik >= 85 (> batas).
-      const tengah = (n - 1) / 2;
-      const dekatPuncak = 1 - Math.abs((k - tengah) / (tengah || 1));
-      const kec = Math.round(85 + (puncak - 85) * (0.5 + 0.5 * dekatPuncak));
+      const dekatPuncak = tengah === 0 ? 1 : 1 - Math.abs(k - tengah) / tengah;
+      const kec = Math.round(85 + (puncak - 85) * Math.pow(dekatPuncak, 0.8));
       titik.push(titikPosisi(truk, rute, frac0 + k * 0.02, kec, mulaiMs + k * 30e3));
     }
+    // Titik tengah selalu tepat di puncak (juga saat n genap).
+    titik[Math.round(tengah)].kecepatan = puncak;
     const konteks = [
       titikPosisi(truk, rute, frac0 - 0.04, bulat(r, 55, 68), mulaiMs - 60e3),
       titikPosisi(truk, rute, frac0 - 0.02, bulat(r, 68, 78), mulaiMs - 30e3),
@@ -236,6 +306,7 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
     const e = {
       truk,
       off,
+      jam,
       plat: truk.plat,
       mulai: iso(mulaiMs),
       mulaiMs,
@@ -243,14 +314,19 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
       puncak: Math.max(...titik.map((t) => t.kecepatan)),
       titik,
       deret: [...konteks, ...titik].sort((x, y) => (x.ts < y.ts ? -1 : 1)),
+      pengaduan: 0,
     };
     insiden.push(e);
     return e;
   };
-  const JUMLAH_INSIDEN_DASAR = 24;
-  const offDasar = [1, 3, 5]; // dijamin ada di 7 hari terakhir
-  while (offDasar.length < JUMLAH_INSIDEN_DASAR) offDasar.push(bulat(r, 0, HARI_RENTANG - 1));
-  for (const off of offDasar) buatInsiden({ truk: pilihTrukInsiden(), off, jam: jamInsiden(), menit: bulat(r, 0, 59) });
+  slot.forEach((sl, i) => {
+    const truk = urutanTruk[i] ?? trukBerat[i % trukBerat.length];
+    buatInsiden({ truk, off: sl.off, jam: sl.jam, menit: bulat(r, 0, 59) });
+  });
+  // Slot yang gugur (mis. bentrok waktu) diganti sampai kuota total tercapai.
+  for (let i = 0; insiden.length < totalInsiden && i < 200; i += 1) {
+    buatInsiden({ truk: trukBerat[i % trukBerat.length], off: bulat(r, 1, 29), jam: jamBerbobot(), menit: bulat(r, 0, 59) });
+  }
   const insidenPadaHari = (off) => insiden.filter((e) => e.off === off);
 
   // Deret kecepatan untuk grafik bukti di panel Pengaduan (label HH:MM WIB),
@@ -260,9 +336,96 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
 
   // ---------- Pengaduan + agent_runs ----------
   // Jumlah per hari: 7 hari terakhir dijamin >= 10 laporan, sisanya 0-3/hari.
-  // Pengaduan VALID selalu jatuh pada truk & waktu yang punya insiden di
-  // telemetri (70% menempel ke insiden hari itu; sisanya insiden baru), jadi
-  // grafik bukti kecepatan di Pengaduan cocok dengan Analitik.
+  // - VALID selalu merujuk insiden nyata (truk & waktu sama) -> grafik bukti
+  //   kecepatan di Pengaduan cocok dengan Analitik.
+  // - DITOLAK jatuh pada waktu truk tercatat DIAM (0 km/jam, status berhenti).
+  // - PERLU DITINJAU tanpa insiden: kecepatan mendekati batas (72-80).
+  const buatPengaduan = ({ off, oleh, episode, status, truk, kejadian }) => {
+    let deret;
+    if (episode) {
+      deret = episode.deret;
+      episode.pengaduan += 1;
+    } else {
+      const rute = RUTE[(trucks.indexOf(truk) + off) % RUTE.length];
+      const frac = r();
+      const rendah = [];
+      for (let k = -2; k <= 2; k += 1) {
+        const kec = status === "ditolak" ? 0 : bulat(r, 72, BATAS_KMJ);
+        rendah.push(titikPosisi(truk, rute, frac, kec, kejadian + k * 2 * 6e4));
+      }
+      positions.push(...rendah);
+      deret = rendah;
+    }
+    const kecList = deret.map((p) => p.kecepatan);
+    const maks = Math.max(...kecList);
+    const rata = Math.round(kecList.reduce((x, y) => x + y, 0) / kecList.length);
+    const puncakTitik = deret.find((p) => p.kecepatan === maks);
+    const dibuat = Math.min(kejadian + bulat(r, 15, 180) * 6e4, batasTs);
+    const lokasi = pilih(r, LOKASI);
+    const id = uuidDari(r);
+    const runMulai = dibuat + 2000;
+    const runSelesai = runMulai + bulat(r, 20, 120) * 1000;
+    const decidedAt =
+      oleh === "agent" ? runSelesai : oleh === "operator" ? dibuat + bulat(r, 30, 240) * 6e4 : null;
+    const alasanAgent =
+      status === "valid"
+        ? `Telemetri mencatat kecepatan maksimum ${maks} km/jam (rata-rata ${rata} km/jam) pada jendela 30 menit di sekitar jam kejadian, melampaui batas ${BATAS_KMJ} km/jam.`
+        : status === "ditolak"
+          ? `Telemetri mencatat truk berhenti (0 km/jam) pada jendela 30 menit di sekitar jam kejadian; tidak ada pergerakan, apalagi pelanggaran batas ${BATAS_KMJ} km/jam.`
+          : `Kecepatan maksimum ${maks} km/jam (rata-rata ${rata} km/jam) pada jendela 30 menit di sekitar jam kejadian; perlu peninjauan operator.`;
+    const verdict = status === "valid" ? "terbukti" : status === "ditolak" ? "tidak_terbukti" : "sedang_diperiksa";
+    pengaduan.push({
+      id,
+      plat: truk.plat,
+      tanggal: tanggalWIB(kejadian),
+      jam: jamStr(kejadian),
+      deskripsi: pilih(r, DESKRIPSI).replace("{lokasi}", lokasi),
+      status,
+      alasan: alasanAgent,
+      created_at: iso(dibuat),
+      diputuskan_oleh: oleh,
+      decided_by: oleh,
+      decided_by_name: oleh === "operator" ? "Tim Internal" : null,
+      decided_at: decidedAt == null ? null : iso(Math.min(decidedAt, now)),
+      decision_reason:
+        status === "perlu-ditinjau"
+          ? []
+          : status === "ditolak"
+            ? [`Truk tercatat berhenti (0 km/jam) pada jam kejadian`, `${kecList.length} titik telemetri dalam jendela 30 menit`]
+            : [`Kecepatan maksimum ${maks} km/jam vs batas ${BATAS_KMJ} km/jam`, `${kecList.length} titik telemetri dalam jendela 30 menit`],
+      analysis_status: "selesai",
+      verdict,
+      reasoning: alasanAgent,
+      // Nama kunci sama dengan evidence hasil lib/complaint-analysis.js
+      // supaya panel Pengaduan (grafik bukti kecepatan) membacanya.
+      evidence: {
+        seed: true,
+        plate: truk.plat,
+        truckId: truk.id,
+        speedLimitKph: BATAS_KMJ,
+        maxSpeedKph: maks,
+        avgSpeedKph: rata,
+        sampleCount: kecList.length,
+        windowStart: iso(kejadian - 30 * 6e4),
+        windowEnd: iso(kejadian + 30 * 6e4),
+        hasTime: true,
+        peak: puncakTitik ? { lat: puncakTitik.lat, lng: puncakTitik.lon, speed: maks } : null,
+        speedSeries: deretBukti(deret),
+        incidentStart: episode ? episode.mulai : null,
+      },
+      truck_id: truk.id,
+      driver_id: pengemudiBertugas(truk.id, kejadian),
+    });
+    agentRuns.push({
+      trigger_type: "otomatis",
+      complaint_id: id,
+      started_at: iso(Math.min(runMulai, now)),
+      finished_at: iso(Math.min(runSelesai, now)),
+      outcome: oleh === "agent" ? status : "perlu-ditinjau",
+      notes: "seed-demo",
+    });
+  };
+
   for (let off = HARI_RENTANG - 1; off >= 0; off -= 1) {
     const hari0 = awalHariIni - off * 864e5;
     let n;
@@ -275,12 +438,11 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
       if (maksJam < 6) continue;
       const x = r();
       const oleh = x < 0.7 ? "agent" : x < 0.9 ? "operator" : null;
-
       let truk = pilih(r, trucks);
       let kejadian = hari0 + bulat(r, 6, maksJam) * 36e5 + bulat(r, 0, 59) * 6e4;
       let episode = null;
       const padaHari = insidenPadaHari(off);
-      if (padaHari.length && r() < 0.7) {
+      if (padaHari.length && r() < 0.75) {
         episode = pilih(r, padaHari);
         truk = episode.truk;
         kejadian = episode.mulaiMs + bulat(r, 0, 2) * 6e4;
@@ -288,103 +450,17 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
       let status;
       if (!oleh) status = "perlu-ditinjau";
       else if (episode) status = r() < 0.9 ? "valid" : "perlu-ditinjau";
-      else if (r() < 0.12) {
-        episode = buatInsiden({
-          truk,
-          off,
-          jam: Math.floor((kejadian - hari0) / 36e5),
-          menit: Math.floor(((kejadian - hari0) % 36e5) / 6e4),
-          puncakMaks: 100,
-        });
-        status = episode ? "valid" : "ditolak";
-      } else status = "ditolak";
-
-      // Telemetri untuk pengaduan tanpa insiden: konsisten dengan keputusan.
-      let deret;
-      if (episode) {
-        deret = episode.deret;
-      } else {
-        const rentangKec = status === "ditolak" ? [38, 62] : [72, BATAS_KMJ];
-        const rute = RUTE[(trucks.indexOf(truk) + off) % RUTE.length];
-        const rendah = [];
-        for (let k = -2; k <= 2; k += 1) {
-          rendah.push(titikPosisi(truk, rute, r(), bulat(r, rentangKec[0], rentangKec[1]), kejadian + k * 2 * 6e4));
-        }
-        positions.push(...rendah);
-        deret = rendah;
-      }
-      const kecList = deret.map((p) => p.kecepatan);
-      const maks = Math.max(...kecList);
-      const rata = Math.round(kecList.reduce((a, b) => a + b, 0) / kecList.length);
-      const puncakTitik = deret.find((p) => p.kecepatan === maks);
-      const dibuat = Math.min(kejadian + bulat(r, 15, 180) * 6e4, batasTs);
-      const lokasi = pilih(r, LOKASI);
-      const id = uuidDari(r);
-
-      const runMulai = dibuat + 2000;
-      const runSelesai = runMulai + bulat(r, 20, 120) * 1000;
-      const decidedAt =
-        oleh === "agent" ? runSelesai : oleh === "operator" ? dibuat + bulat(r, 30, 240) * 6e4 : null;
-      const alasanAgent =
-        status === "valid"
-          ? `Telemetri mencatat kecepatan maksimum ${maks} km/jam (rata-rata ${rata} km/jam) pada jendela 30 menit di sekitar jam kejadian, melampaui batas ${BATAS_KMJ} km/jam.`
-          : status === "ditolak"
-            ? `Telemetri mencatat kecepatan maksimum ${maks} km/jam (rata-rata ${rata} km/jam) pada jendela 30 menit di sekitar jam kejadian, di bawah batas ${BATAS_KMJ} km/jam.`
-            : `Kecepatan maksimum ${maks} km/jam (rata-rata ${rata} km/jam) pada jendela 30 menit di sekitar jam kejadian; perlu peninjauan operator.`;
-      const verdict = status === "valid" ? "terbukti" : status === "ditolak" ? "tidak_terbukti" : "sedang_diperiksa";
-
-      pengaduan.push({
-        id,
-        plat: truk.plat,
-        tanggal: tanggalWIB(kejadian),
-        jam: jamStr(kejadian),
-        deskripsi: pilih(r, DESKRIPSI).replace("{lokasi}", lokasi),
-        status,
-        alasan: alasanAgent,
-        created_at: iso(dibuat),
-        diputuskan_oleh: oleh,
-        decided_by: oleh,
-        decided_by_name: oleh === "operator" ? "Tim Internal" : null,
-        decided_at: decidedAt == null ? null : iso(Math.min(decidedAt, now)),
-        decision_reason:
-          status === "perlu-ditinjau"
-            ? []
-            : [
-                `Kecepatan maksimum ${maks} km/jam vs batas ${BATAS_KMJ} km/jam`,
-                `${kecList.length} titik telemetri dalam jendela 30 menit`,
-              ],
-        analysis_status: "selesai",
-        verdict,
-        reasoning: alasanAgent,
-        // Nama kunci sama dengan evidence hasil lib/complaint-analysis.js
-        // supaya panel Pengaduan (grafik bukti kecepatan) membacanya.
-        evidence: {
-          seed: true,
-          plate: truk.plat,
-          truckId: truk.id,
-          speedLimitKph: BATAS_KMJ,
-          maxSpeedKph: maks,
-          avgSpeedKph: rata,
-          sampleCount: kecList.length,
-          windowStart: iso(kejadian - 30 * 6e4),
-          windowEnd: iso(kejadian + 30 * 6e4),
-          hasTime: true,
-          peak: puncakTitik ? { lat: puncakTitik.lat, lng: puncakTitik.lon, speed: maks } : null,
-          speedSeries: deretBukti(deret),
-          incidentStart: episode ? episode.mulai : null,
-        },
-        truck_id: truk.id,
-        driver_id: pengemudiBertugas(truk.id, kejadian),
-      });
-      agentRuns.push({
-        trigger_type: "otomatis",
-        complaint_id: id,
-        started_at: iso(Math.min(runMulai, now)),
-        finished_at: iso(Math.min(runSelesai, now)),
-        outcome: oleh === "agent" ? status : "perlu-ditinjau",
-        notes: "seed-demo",
-      });
+      else status = r() < 0.8 ? "ditolak" : "perlu-ditinjau";
+      buatPengaduan({ off, oleh, episode, status, truk, kejadian });
     }
+  }
+  // Jaminan: minimal JAMINAN.pengaduanValidTerkaitMin pengaduan valid yang
+  // merujuk insiden; bila kurang, tambahkan pada insiden yang belum dilaporkan.
+  const validTerkait = () => pengaduan.filter((p) => p.status === "valid" && p.evidence.incidentStart).length;
+  for (const e of [...insiden].sort((x, y) => x.mulaiMs - y.mulaiMs)) {
+    if (validTerkait() >= JAMINAN.pengaduanValidTerkaitMin) break;
+    if (e.pengaduan > 0) continue;
+    buatPengaduan({ off: e.off, oleh: "agent", episode: e, status: "valid", truk: e.truk, kejadian: e.mulaiMs + 6e4 });
   }
 
   void randBetween;
@@ -394,6 +470,60 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
     pengaduan,
     agentRuns,
     schedules,
-    insiden: insiden.map((e) => ({ plat: e.plat, truk_id: e.truk.id, mulai: e.mulai, puncak: e.puncak, titik: e.titik.length })),
+    insiden: insiden.map((e) => ({ plat: e.plat, truk_id: e.truk.id, off: e.off, jam: e.jam, mulai: e.mulai, puncak: e.puncak, titik: e.titik.length, pengaduan: e.pengaduan })),
   };
+}
+
+// ---------- Verifikasi jaminan (dicetak scripts/seed.js) ----------
+// Menghitung dari TITIK telemetri (positions) lewat kelompokkanInsiden, sama
+// dengan cara Analitik menghitung, bukan dari daftar internal generator.
+export function periksaJaminan(seed, now = Date.now()) {
+  const hariIni = tanggalWIB(now);
+  const awal = awalHariWIB(hariIni);
+  const episode = kelompokkanInsiden(seed.positions.filter((p) => melebihiBatas(p.kecepatan)));
+  const offDari = (isoTs) => Math.floor((awal - awalHariWIB(tanggalWIB(new Date(isoTs).getTime()))) / 864e5);
+  const dalam = (hari) => episode.filter((e) => offDari(e.mulai) <= hari - 1).length;
+  const truk = new Set(episode.map((e) => e.truk_id));
+  const jamAda = new Set(
+    episode.map((e) => Number(new Date(e.mulai).toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: "Asia/Jakarta" })) % 24)
+  );
+  const [jamAwal, jamAkhir] = JAMINAN.jamKerja;
+  const jamKosong = [];
+  for (let j = jamAwal; j <= jamAkhir; j += 1) if (!jamAda.has(j)) jamKosong.push(j);
+  const valid = seed.pengaduan.filter((p) => p.status === "valid");
+  const validCocok = valid.filter((p) => {
+    const t = new Date(`${p.tanggal}T${p.jam}+07:00`).getTime();
+    return episode.some((e) => e.truk_id === p.truck_id && t >= new Date(e.mulai).getTime() - 5 * 6e4 && t <= new Date(e.selesai).getTime() + 5 * 6e4);
+  });
+  const ditolak = seed.pengaduan.filter((p) => p.status === "ditolak");
+  const ditolakDiam = ditolak.filter((p) => p.evidence.maxSpeedKph === 0);
+  const titikPerInsiden = episode.map((e) => e.titik);
+  const hasil = {
+    insiden7: dalam(7),
+    insiden30: dalam(30),
+    insiden90: dalam(90),
+    total: episode.length,
+    trukTerlibat: truk.size,
+    jamKosong,
+    validTotal: valid.length,
+    validCocok: validCocok.length,
+    ditolakTotal: ditolak.length,
+    ditolakDiam: ditolakDiam.length,
+    titikMin: Math.min(...titikPerInsiden),
+    titikMaks: Math.max(...titikPerInsiden),
+    puncakMin: Math.min(...episode.map((e) => e.kecepatanMaks)),
+    puncakMaks: Math.max(...episode.map((e) => e.kecepatanMaks)),
+  };
+  const cek = [
+    ["insiden 7 hari terakhir", hasil.insiden7, `>= ${JAMINAN.insiden7Hari}`, hasil.insiden7 >= JAMINAN.insiden7Hari],
+    ["insiden 30 hari terakhir", hasil.insiden30, `>= ${JAMINAN.insiden30Hari}`, hasil.insiden30 >= JAMINAN.insiden30Hari],
+    ["insiden 90 hari", hasil.insiden90, `${JAMINAN.totalMin}-${JAMINAN.totalMaks}`, hasil.insiden90 >= JAMINAN.totalMin && hasil.insiden90 <= JAMINAN.totalMaks],
+    ["truk terlibat", hasil.trukTerlibat, `>= ${JAMINAN.trukTerlibatMin}`, hasil.trukTerlibat >= JAMINAN.trukTerlibatMin],
+    ["jam kerja tanpa insiden", jamKosong.length ? jamKosong.join(",") : "tidak ada", `tidak ada (${jamAwal}-${jamAkhir})`, jamKosong.length === 0],
+    ["pengaduan valid punya insiden bersesuaian", `${hasil.validCocok}/${hasil.validTotal}`, `semua, >= ${JAMINAN.pengaduanValidTerkaitMin}`, hasil.validCocok === hasil.validTotal && hasil.validCocok >= JAMINAN.pengaduanValidTerkaitMin],
+    ["pengaduan ditolak saat truk diam", `${hasil.ditolakDiam}/${hasil.ditolakTotal}`, "semua", hasil.ditolakDiam === hasil.ditolakTotal],
+    ["titik per insiden", `${hasil.titikMin}-${hasil.titikMaks}`, "3-6", hasil.titikMin >= 3 && hasil.titikMaks <= 6],
+    ["puncak kecepatan", `${hasil.puncakMin}-${hasil.puncakMaks} km/jam`, "95-120", hasil.puncakMin >= 95 && hasil.puncakMaks <= 120],
+  ];
+  return { hasil, cek, lulus: cek.every((c) => c[3]) };
 }

@@ -49,6 +49,15 @@ export const FLEET_DRIVERS = [
   { id: "d1000000-0000-4000-8000-000000000015", nama: "Oktavianus Bima",    no_hp: "0821 7890 7015", truck_id: "a1000000-0000-4000-8000-000000000015" },
 ];
 
+// Profil pelanggaran kecepatan untuk data demo (scripts/seed-data.js):
+// TETAP, bukan diacak, supaya grafik "Insiden Kecepatan per Armada" sama
+// antar seed. 3 penyumbang terbesar (5-8 insiden/90 hari), 5 menengah
+// (2-4 insiden), truk lain 0-1 insiden.
+export const FLEET_SPEEDING_PROFILE = {
+  berat: ["W 3324 IJ", "L 8821 AB", "N 7788 OP"],
+  menengah: ["W 1187 EF", "W 9042 CD", "N 2298 MN", "W 1234 NV", "AG 4405 QR"],
+};
+
 export const FLEET_TRUCK_BY_ID = Object.fromEntries(FLEET_TRUCKS.map((t) => [t.id, t]));
 export const FLEET_DRIVER_BY_TRUCK_ID = Object.fromEntries(FLEET_DRIVERS.map((d) => [d.truck_id, d]));
 
