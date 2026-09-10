@@ -15,6 +15,14 @@
 //   insiden    episode ngebut yang DIJAMIN (lihat JAMINAN di bawah), bukan
 //              hasil keberuntungan acak; periksaJaminan() memverifikasinya
 
+import { seededRandom, randBetween, randInt, randPick } from "../lib/seeded-random.js";
+import { BATAS_KECEPATAN_KPJ, kelompokkanInsiden, melebihiBatas } from "../lib/speed-limit.js";
+import { FLEET_SPEEDING_PROFILE } from "./fleet-data.js";
+
+export const HARI_RENTANG = 90;
+// Ambang dari satu sumber (lib/speed-limit.js).
+export const BATAS_KMJ = BATAS_KECEPATAN_KPJ;
+
 // JAMINAN insiden kecepatan setiap seed (diperiksa periksaJaminan):
 export const JAMINAN = {
   insiden7Hari: 3,
@@ -25,13 +33,22 @@ export const JAMINAN = {
   jamKerja: [6, 22], // tiap jam 06-22 punya >= 1 insiden dalam 90 hari
   pengaduanValidTerkaitMin: 12,
 };
-import { seededRandom, randBetween, randInt, randPick } from "../lib/seeded-random.js";
-import { BATAS_KECEPATAN_KPJ, kelompokkanInsiden, melebihiBatas } from "../lib/speed-limit.js";
-import { FLEET_SPEEDING_PROFILE } from "./fleet-data.js";
 
-export const HARI_RENTANG = 90;
-// Ambang dari satu sumber (lib/speed-limit.js).
-export const BATAS_KMJ = BATAS_KECEPATAN_KPJ;
+// INSIDEN WAJIB: daftar TETAP (bukan acak) hari ke-n dihitung mundur dari
+// hari ini, ditanam SEBELUM insiden acak. Rentang 7 hari pasti punya >= 3
+// (hari 1, 3, 6), 30 hari >= 6 (+12, 20, 28), 90 hari seluruhnya.
+// Truk & jam juga tetap supaya identik antar seed.
+export const INSIDEN_WAJIB = [
+  { hari: 1,  plat: "W 3324 IJ",  jam: 15, menit: 20 },
+  { hari: 3,  plat: "L 8821 AB",  jam: 21, menit: 5 },
+  { hari: 6,  plat: "N 7788 OP",  jam: 13, menit: 40 },
+  { hari: 12, plat: "W 3324 IJ",  jam: 19, menit: 50 },
+  { hari: 20, plat: "W 1187 EF",  jam: 16, menit: 10 },
+  { hari: 28, plat: "L 8821 AB",  jam: 14, menit: 30 },
+  { hari: 45, plat: "N 7788 OP",  jam: 22, menit: 15 },
+  { hari: 70, plat: "W 9042 CD",  jam: 20, menit: 45 },
+  { hari: 85, plat: "W 3324 IJ",  jam: 13, menit: 5 },
+];
 
 const KOTA = {
   Surabaya: [-7.2575, 112.7521],
@@ -229,6 +246,11 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
     if (!kandidat) break;
     kuota.set(kandidat.id, kuota.get(kandidat.id) - 1);
   }
+  // Insiden wajib mengambil jatah kuota truknya (kuota tidak boleh < 0).
+  for (const w of INSIDEN_WAJIB) {
+    const t = platKe(w.plat);
+    if (t) kuota.set(t.id, Math.max(0, (kuota.get(t.id) ?? 0) - 1));
+  }
   const totalInsiden = totalKuota();
 
   // ---------- Slot waktu: hari & jam (timpang, tapi tiap jam kerja terisi) ----------
@@ -244,8 +266,9 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
   };
   const slotHari = [];
   for (let i = 0; i < totalInsiden; i += 1) {
-    if (i < JAMINAN.insiden7Hari) slotHari.push([1, 3, 5][i % 3]);
-    else if (i < JAMINAN.insiden30Hari) slotHari.push(bulat(r, 7, 29));
+    // Separuh dari yang dibutuhkan untuk 30 hari diisi acak di 7-29 hari
+    // (sisanya sudah dijamin INSIDEN_WAJIB), selebihnya 1-89 hari.
+    if (i < JAMINAN.insiden30Hari - INSIDEN_WAJIB.filter((w) => w.hari <= 29).length) slotHari.push(bulat(r, 7, 29));
     else slotHari.push(bulat(r, 1, HARI_RENTANG - 1));
   }
   const slotJam = [];
@@ -319,12 +342,18 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
     insiden.push(e);
     return e;
   };
+  // 1) Insiden WAJIB pada tanggal tetap (INSIDEN_WAJIB), tanpa keacakan.
+  for (const w of INSIDEN_WAJIB) {
+    const truk = platKe(w.plat) ?? trucks[0];
+    buatInsiden({ truk, off: w.hari, jam: w.jam, menit: w.menit });
+  }
+  // 2) Insiden acak sebagai variasi, sesuai kuota per truk.
   slot.forEach((sl, i) => {
     const truk = urutanTruk[i] ?? trukBerat[i % trukBerat.length];
     buatInsiden({ truk, off: sl.off, jam: sl.jam, menit: bulat(r, 0, 59) });
   });
   // Slot yang gugur (mis. bentrok waktu) diganti sampai kuota total tercapai.
-  for (let i = 0; insiden.length < totalInsiden && i < 200; i += 1) {
+  for (let i = 0; insiden.length < totalInsiden + INSIDEN_WAJIB.length && i < 200; i += 1) {
     buatInsiden({ truk: trukBerat[i % trukBerat.length], off: bulat(r, 1, 29), jam: jamBerbobot(), menit: bulat(r, 0, 59) });
   }
   const insidenPadaHari = (off) => insiden.filter((e) => e.off === off);
@@ -498,11 +527,15 @@ export function periksaJaminan(seed, now = Date.now()) {
   const ditolak = seed.pengaduan.filter((p) => p.status === "ditolak");
   const ditolakDiam = ditolak.filter((p) => p.evidence.maxSpeedKph === 0);
   const titikPerInsiden = episode.map((e) => e.titik);
+  const wajibAda = INSIDEN_WAJIB.filter((w) =>
+    episode.some((e) => offDari(e.mulai) === w.hari && (seed.insiden ?? []).some((i) => i.plat === w.plat && i.mulai === e.mulai))
+  ).length;
   const hasil = {
     insiden7: dalam(7),
     insiden30: dalam(30),
     insiden90: dalam(90),
     total: episode.length,
+    wajibAda,
     trukTerlibat: truk.size,
     jamKosong,
     validTotal: valid.length,
@@ -515,6 +548,7 @@ export function periksaJaminan(seed, now = Date.now()) {
     puncakMaks: Math.max(...episode.map((e) => e.kecepatanMaks)),
   };
   const cek = [
+    ["insiden wajib (tanggal tetap) tertanam", `${wajibAda}/${INSIDEN_WAJIB.length}`, "semua", wajibAda === INSIDEN_WAJIB.length],
     ["insiden 7 hari terakhir", hasil.insiden7, `>= ${JAMINAN.insiden7Hari}`, hasil.insiden7 >= JAMINAN.insiden7Hari],
     ["insiden 30 hari terakhir", hasil.insiden30, `>= ${JAMINAN.insiden30Hari}`, hasil.insiden30 >= JAMINAN.insiden30Hari],
     ["insiden 90 hari", hasil.insiden90, `${JAMINAN.totalMin}-${JAMINAN.totalMaks}`, hasil.insiden90 >= JAMINAN.totalMin && hasil.insiden90 <= JAMINAN.totalMaks],

@@ -23,7 +23,7 @@ import { klien } from "./lib-supabase-rest.js";
 import { generateSeed, periksaJaminan } from "./seed-data.js";
 import { FLEET_TRUCKS, FLEET_DRIVERS, fleetTruckRows, fleetDriverRows } from "./fleet-data.js";
 import { periksaArmada, cetakLaporan } from "./verify-fleet.js";
-import { BATAS_KECEPATAN_KPJ, melebihiBatas } from "../lib/speed-limit.js";
+import { BATAS_KECEPATAN_KPJ, melebihiBatas, kelompokkanInsiden } from "../lib/speed-limit.js";
 
 const kunci = (p) => String(p ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 const namaKunci = (n) => String(n ?? "").trim().toLowerCase();
@@ -64,27 +64,65 @@ async function rekeyPengemudi(db, lama, tetap, apply) {
   await db.del("drivers", `?id=eq.${lama.id}`);
 }
 
-async function tulisBertahap(db, tabel, rows, ukuran, label) {
+// Batch maksimal 500 baris (payload PostgREST). Yang dihitung adalah baris
+// yang BENAR-BENAR dikembalikan server (Prefer: return=representation),
+// bukan jumlah yang direncanakan. Batch gagal -> dicoba per baris, error
+// pertama dicetak apa adanya.
+const UKURAN_BATCH = 500;
+async function tulisBertahap(db, tabel, rows, label) {
   let ok = 0;
   let gagal = 0;
-  for (let i = 0; i < rows.length; i += ukuran) {
-    const potongan = rows.slice(i, i + ukuran);
+  let errorPertama = null;
+  for (let i = 0; i < rows.length; i += UKURAN_BATCH) {
+    const potongan = rows.slice(i, i + UKURAN_BATCH);
     try {
-      await db.post(tabel, potongan);
-      ok += potongan.length;
-    } catch {
+      const hasil = await db.post(tabel, potongan);
+      ok += Array.isArray(hasil) ? hasil.length : potongan.length;
+    } catch (e) {
+      errorPertama ??= e.message.split("\n")[0].slice(0, 300);
       for (const row of potongan) {
         try {
-          await db.post(tabel, [row]);
-          ok += 1;
+          const hasil = await db.post(tabel, [row]);
+          ok += Array.isArray(hasil) ? hasil.length : 1;
         } catch (e2) {
           gagal += 1;
-          if (gagal <= 3) console.warn(`  lewati 1 baris ${label}: ${e2.message.split("\n")[0].slice(0, 160)}`);
+          errorPertama ??= e2.message.split("\n")[0].slice(0, 300);
         }
       }
     }
+    process.stdout.write(`  ${label}: ${ok}/${rows.length} baris tersimpan\r`);
   }
-  console.log(`tulis ${label}: ${ok} baris${gagal ? `, ${gagal} dilewati` : ""}`);
+  console.log(`  ${label}: ${ok}/${rows.length} baris tersimpan${gagal ? `, ${gagal} GAGAL` : ""}${errorPertama ? `\n    error pertama: ${errorPertama}` : ""}`);
+  return { ok, gagal, errorPertama };
+}
+
+// Cek langsung ke database setelah menulis: hasil apa adanya, bukan rencana.
+async function cekInsidenDb(db) {
+  const truk = await db.get("trucks", "?select=id,plat,status&limit=1000");
+  const trukDariId = Object.fromEntries(truk.map((t) => [t.id, t]));
+  const total = await db.hitung("positions");
+  const diAtas = await db.hitung("positions", `?kecepatan=gt.${BATAS_KECEPATAN_KPJ}`);
+  const tertinggi = await db.get("positions", "?select=kecepatan,ts&order=kecepatan.desc&limit=1");
+  const awal = await db.get("positions", "?select=ts&order=ts.asc&limit=1");
+  const akhir = await db.get("positions", "?select=ts&order=ts.desc&limit=1");
+  const rows = await db.get("positions", `?select=truk_id,ts,kecepatan&kecepatan=gt.${BATAS_KECEPATAN_KPJ}&order=ts.desc&limit=10000`);
+  console.log("\n== Cek database (apa adanya) ==");
+  console.log(`  select count(*) from positions where kecepatan > ${BATAS_KECEPATAN_KPJ};   -> ${diAtas}`);
+  console.log(`  select max(kecepatan), min(ts), max(ts) from positions;  -> ${tertinggi[0]?.kecepatan ?? "-"} | ${awal[0]?.ts ?? "-"} | ${akhir[0]?.ts ?? "-"}  (total ${total} baris)`);
+  const per = {};
+  for (const p of rows) {
+    const t = trukDariId[p.truk_id];
+    const k = t ? `${t.plat} aktif=${t.status === "aktif"}` : `${p.truk_id} (TIDAK ADA di trucks)`;
+    per[k] = (per[k] ?? 0) + 1;
+  }
+  console.log("  per truk (kecepatan > 80, join trucks):");
+  for (const [k, n] of Object.entries(per).sort((a, b) => b[1] - a[1])) console.log(`    ${k.padEnd(34)} ${n}`);
+  const aktifRows = rows.filter((p) => trukDariId[p.truk_id]?.status === "aktif");
+  const ep = kelompokkanInsiden(aktifRows);
+  const now = Date.now();
+  const dalam = (h) => ep.filter((e) => now - new Date(e.mulai).getTime() <= h * 864e5).length;
+  console.log(`  insiden (episode) truk aktif: 7 hari ${dalam(7)} | 30 hari ${dalam(30)} | 90 hari ${dalam(90)} | truk terlibat ${new Set(ep.map((e) => e.truk_id)).size}`);
+  return { diAtas, insiden7: dalam(7), insiden30: dalam(30), insiden90: dalam(90) };
 }
 
 async function main() {
@@ -166,16 +204,28 @@ async function main() {
     return;
   }
 
-  if (lamaRuns) await db.del("agent_runs", "?notes=eq.seed-demo");
-  if (lamaAduan) await db.del("pengaduan", "?evidence->>seed=eq.true");
-  if (lamaPos) await db.del("positions", "?trip_id=is.null");
-  if (lamaJadwal) await db.del("schedules", "?notes=eq.seed-demo");
-
-  console.log("\nMenulis data turunan...");
-  await tulisBertahap(db, "schedules", seed.schedules, 200, "schedules");
-  await tulisBertahap(db, "positions", seed.positions, 1000, "positions");
-  await tulisBertahap(db, "pengaduan", seed.pengaduan, 200, "pengaduan");
-  await tulisBertahap(db, "agent_runs", seed.agentRuns, 200, "agent_runs");
+  const tahap = async (nama, fn) => {
+    console.log(`\n[tahap] ${nama}`);
+    try {
+      return await fn();
+    } catch (e) {
+      console.error(`  GAGAL pada tahap "${nama}": ${e.message}`);
+      throw e;
+    }
+  };
+  await tahap("hapus seed lama", async () => {
+    if (lamaRuns) console.log(`  hapus agent_runs: ${await db.del("agent_runs", "?notes=eq.seed-demo")}`);
+    if (lamaAduan) console.log(`  hapus pengaduan: ${await db.del("pengaduan", "?evidence->>seed=eq.true")}`);
+    if (lamaPos) console.log(`  hapus positions: ${await db.del("positions", "?trip_id=is.null")}`);
+    if (lamaJadwal) console.log(`  hapus schedules: ${await db.del("schedules", "?notes=eq.seed-demo")}`);
+  });
+  const hasilTulis = {};
+  hasilTulis.schedules = await tahap("tulis schedules", () => tulisBertahap(db, "schedules", seed.schedules, "schedules"));
+  hasilTulis.positions = await tahap("tulis positions (telemetri + insiden)", () => tulisBertahap(db, "positions", seed.positions, "positions"));
+  hasilTulis.pengaduan = await tahap("tulis pengaduan", () => tulisBertahap(db, "pengaduan", seed.pengaduan, "pengaduan"));
+  hasilTulis.agent_runs = await tahap("tulis agent_runs", () => tulisBertahap(db, "agent_runs", seed.agentRuns, "agent_runs"));
+  const adaGagal = Object.values(hasilTulis).some((h) => h.gagal > 0);
+  if (adaGagal) console.error("\nADA BARIS YANG GAGAL DITULIS (lihat error pertama di atas).");
 
   // ---------- 3. Verifikasi ----------
   console.log("\n== Verifikasi konsistensi ==");
@@ -189,7 +239,13 @@ async function main() {
   console.log(`  jam kerja tanpa insiden  : ${h.jamKosong.length ? h.jamKosong.join(", ") : "tidak ada"}`);
   console.log(`  pengaduan valid terkait  : ${h.validCocok} dari ${h.validTotal}`);
   console.log(`  pengaduan ditolak saat truk diam: ${h.ditolakDiam} dari ${h.ditolakTotal}`);
-  console.log(jaminan.lulus ? "  SEMUA JAMINAN TERPENUHI." : "  ADA JAMINAN YANG GAGAL (lihat di atas).");
+  console.log(jaminan.lulus ? "  SEMUA JAMINAN TERPENUHI (di generator)." : "  ADA JAMINAN YANG GAGAL (lihat di atas).");
+
+  // Pembuktian di database: query yang sama dengan supabase/cek-insiden.sql.
+  const db2 = await tahap("cek database setelah menulis", () => cekInsidenDb(db));
+  const cocok = db2.insiden7 >= 3 && db2.insiden30 >= 6 && db2.insiden90 >= 9;
+  console.log(cocok ? "\nDATABASE TERBUKTI berisi insiden untuk rentang 7/30/90 hari." : "\nPERINGATAN: database belum memenuhi minimum insiden 7/30/90 hari; periksa error tulis di atas dan simulator (retensi menghapus positions?).");
+  if (!cocok || adaGagal) process.exit(1);
 }
 
 main().catch((e) => {

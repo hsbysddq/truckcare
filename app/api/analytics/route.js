@@ -15,15 +15,23 @@ export async function GET(req) {
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean);
+  // ?debug=1 -> sertakan jejak query yang benar-benar dijalankan beserta
+  // jumlah baris (diagnosis grafik kosong). Route ini digate proxy.js.
+  const debug = params.get("debug") === "1";
   try {
     let source;
+    let jejak;
     try {
-      source = await getAnalyticsSourceLive({ rangeDays });
-    } catch {
+      source = await getAnalyticsSourceLive({ rangeDays, debug });
+      jejak = source.debug;
+    } catch (e) {
+      // Jatuh ke data contoh HANYA bila Supabase tak terjangkau; alasannya
+      // dicatat supaya tidak diam-diam menampilkan angka contoh.
       source = getAnalyticsSource(await getActiveTrucks());
+      jejak = { jalur: "data contoh (lib/data.js)", error: e.message };
     }
     const data = buildAnalytics(source, { rangeDays, plates });
-    return NextResponse.json(data);
+    return NextResponse.json(debug ? { ...data, debug: jejak } : data);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
