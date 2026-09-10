@@ -5,8 +5,9 @@
 // kali menjalankan generator menghasilkan data yang persis sama.
 //
 // Keluaran (relatif terhadap tanggal hari ini WIB):
-//   positions  telemetri 90 hari ke belakang s.d. hari ini (trip_id null =
-//              penanda baris seed; simulator hanya menghapus baris miliknya)
+//   positions  telemetri 90 hari (trip_id null = penanda baris seed): interval
+//              5 menit untuk 7 hari terakhir, 30 menit untuk hari 8-90, dengan
+//              jam kerja (giliran berangkat, libur mingguan, diam di malam hari)
 //   pengaduan  ±1 laporan/hari selama 90 hari, minimal 10 pada 7 hari terakhir,
 //              ~70% diputuskan agent, ~20% operator, ~10% perlu ditinjau;
 //              evidence.seed = true sebagai penanda
@@ -192,28 +193,65 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
     return pengemudiTetap[truckId] ?? null;
   };
 
-  // ---------- Telemetri harian normal (< batas) ----------
+  const titikPosisi = (truk, rute, frac, kec, ms) => ({
+    trip_id: null,
+    truk_id: truk.id,
+    lat: +titikRute(rute, Math.min(1, Math.max(0, frac))).lat.toFixed(5),
+    lon: +titikRute(rute, Math.min(1, Math.max(0, frac))).lon.toFixed(5),
+    kecepatan: kec,
+    status: kec > 0 ? "jalan" : "berhenti",
+    ts: iso(ms),
+  });
+
+  // ---------- Telemetri historis dengan JAM KERJA ----------
+  // Volume dibatasi: interval 5 menit hanya 7 hari terakhir, 30 menit untuk
+  // hari ke-8..90. Tidak semua truk bergerak bersamaan: tiap truk punya
+  // giliran berangkat (05 / 08 / 11 WIB), satu hari libur per minggu, dan
+  // di luar jam tugas (serta malam 22-05) tercatat DIAM (0 km/jam, status
+  // berhenti) di depo dengan titik jarang (1 per jam / 1 per 3 jam).
+  // Perjalanan panjang (>= 3 jam) punya jeda istirahat 20 menit di tengah.
+  const idle = (truk, rute, ms) => titikPosisi(truk, rute, 0, 0, ms);
   trucks.forEach((truk, ti) => {
+    const jamBerangkat = 5 + (ti % 3) * 3; // 05 / 08 / 11
+    const hariLibur = ti % 7;             // satu hari libur tiap minggu
     for (let off = HARI_RENTANG - 1; off >= 0; off -= 1) {
       const hari0 = awalHariIni - off * 864e5;
+      const rapat = off <= 6;
+      const intervalJalan = (rapat ? 5 : 30) * 6e4;
+      const intervalDiam = (rapat ? 60 : 180) * 6e4;
       const rute = RUTE[(ti + off) % RUTE.length];
-      const mulai = hari0 + (5 + (ti % 3) * 6) * 36e5 + bulat(r, -20, 20) * 6e4;
-      const durasi = rute[2] * 36e5;
-      // 6 titik normal sepanjang perjalanan.
-      for (let k = 0; k < 6; k += 1) {
-        const ts = mulai + (durasi * (k + 0.5)) / 6;
-        if (ts > batasTs) continue;
-        const p = titikRute(rute, (k + 0.5) / 6);
-        const kec = k === 5 ? 0 : bulat(r, 35, 70);
-        positions.push({
-          trip_id: null,
-          truk_id: truk.id,
-          lat: +p.lat.toFixed(5),
-          lon: +p.lon.toFixed(5),
-          kecepatan: kec,
-          status: kec > 0 ? "jalan" : "berhenti",
-          ts: iso(ts),
-        });
+      const libur = off % 7 === hariLibur;
+      // Jendela tugas: satu perjalanan (1-5 jam); slot pagi/siang dapat
+      // perjalanan kedua 40% hari (deterministik) pada sore hari.
+      const tugas = [];
+      if (!libur) {
+        const mulai1 = hari0 + jamBerangkat * 36e5 + bulat(r, -15, 15) * 6e4;
+        tugas.push([mulai1, mulai1 + rute[2] * 36e5, rute]);
+        if (ti % 3 !== 2 && r() < 0.4) {
+          const rute2 = RUTE[(ti + off + 3) % RUTE.length];
+          const mulai2 = Math.max(tugas[0][1] + 60 * 6e4, hari0 + 14 * 36e5);
+          if (mulai2 + rute2[2] * 36e5 <= hari0 + 22 * 36e5) tugas.push([mulai2, mulai2 + rute2[2] * 36e5, rute2]);
+        }
+      }
+      // Titik bergerak selama tugas (dengan jeda istirahat di tengah rute panjang).
+      for (const [mulai, selesai, rt] of tugas) {
+        const durasi = selesai - mulai;
+        const istirahatMulai = rt[2] >= 3 ? mulai + durasi * 0.5 : null;
+        for (let ts = mulai; ts <= selesai; ts += intervalJalan) {
+          if (ts > batasTs) break;
+          const diIstirahat = istirahatMulai != null && ts >= istirahatMulai && ts < istirahatMulai + 20 * 6e4;
+          const frac = (ts - mulai) / durasi;
+          const kec = diIstirahat ? 0 : bulat(r, 35, 70);
+          positions.push(titikPosisi(truk, rt, frac, kec, ts));
+        }
+        if (selesai <= batasTs) positions.push(titikPosisi(truk, rt, 1, 0, selesai + 6e4)); // tiba, berhenti
+      }
+      // Titik diam di depo di luar jam tugas & malam hari (jarang).
+      for (let ts = hari0; ts < hari0 + 864e5; ts += intervalDiam) {
+        if (ts > batasTs) break;
+        const sedangTugas = tugas.some(([m, sl]) => ts >= m - 5 * 6e4 && ts <= sl + 5 * 6e4);
+        if (sedangTugas) continue;
+        positions.push(idle(truk, rute, ts));
       }
     }
   });
@@ -288,15 +326,6 @@ export function generateSeed({ trucks, drivers, now = Date.now(), benih = 202609
   }
 
   const insiden = [];
-  const titikPosisi = (truk, rute, frac, kec, ms) => ({
-    trip_id: null,
-    truk_id: truk.id,
-    lat: +titikRute(rute, Math.min(1, Math.max(0, frac))).lat.toFixed(5),
-    lon: +titikRute(rute, Math.min(1, Math.max(0, frac))).lon.toFixed(5),
-    kecepatan: kec,
-    status: kec > 0 ? "jalan" : "berhenti",
-    ts: iso(ms),
-  });
   // Satu insiden = 3-6 titik berturutan (30 detik) > batas, memuncak di
   // tengah 95-120 km/jam lalu turun; diapit titik konteks < batas.
   const buatInsiden = ({ truk, off, jam, menit }) => {

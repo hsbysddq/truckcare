@@ -69,31 +69,72 @@ async function rekeyPengemudi(db, lama, tetap, apply) {
 // bukan jumlah yang direncanakan. Batch gagal -> dicoba per baris, error
 // pertama dicetak apa adanya.
 const UKURAN_BATCH = 500;
-async function tulisBertahap(db, tabel, rows, label) {
+const JEDA_BATCH_MS = 150; // jeda antar batch: hindari rate limit / timeout
+const tidur = (ms) => new Promise((res) => setTimeout(res, ms));
+const tanggalWIB = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+
+// kolomTs: bila diisi, baris diurutkan per waktu dan jumlah yang BERHASIL
+// masuk dicetak per hari (WIB), dihitung dari baris yang dikembalikan server.
+async function tulisBertahap(db, tabel, rows, label, kolomTs = null) {
+  const urut = kolomTs ? [...rows].sort((x, y) => (x[kolomTs] < y[kolomTs] ? -1 : 1)) : rows;
   let ok = 0;
   let gagal = 0;
   let errorPertama = null;
-  for (let i = 0; i < rows.length; i += UKURAN_BATCH) {
-    const potongan = rows.slice(i, i + UKURAN_BATCH);
+  const perHari = new Map();
+  const catatHari = (hasil) => {
+    if (!kolomTs) return;
+    for (const row of hasil) {
+      const k = tanggalWIB(row[kolomTs]);
+      perHari.set(k, (perHari.get(k) ?? 0) + 1);
+    }
+  };
+  const mulai = Date.now();
+  for (let i = 0; i < urut.length; i += UKURAN_BATCH) {
+    const potongan = urut.slice(i, i + UKURAN_BATCH);
     try {
       const hasil = await db.post(tabel, potongan);
-      ok += Array.isArray(hasil) ? hasil.length : potongan.length;
+      const n = Array.isArray(hasil) ? hasil.length : 0;
+      ok += n;
+      catatHari(Array.isArray(hasil) ? hasil : []);
+      if (n !== potongan.length) console.warn(`  batch ${i / UKURAN_BATCH + 1}: server mengembalikan ${n} dari ${potongan.length} baris`);
     } catch (e) {
       errorPertama ??= e.message.split("\n")[0].slice(0, 300);
+      console.warn(`  batch ${i / UKURAN_BATCH + 1} gagal (${e.message.split("\n")[0].slice(0, 120)}); coba per baris...`);
       for (const row of potongan) {
         try {
           const hasil = await db.post(tabel, [row]);
-          ok += Array.isArray(hasil) ? hasil.length : 1;
+          ok += Array.isArray(hasil) ? hasil.length : 0;
+          catatHari(Array.isArray(hasil) ? hasil : []);
         } catch (e2) {
           gagal += 1;
           errorPertama ??= e2.message.split("\n")[0].slice(0, 300);
         }
       }
     }
-    process.stdout.write(`  ${label}: ${ok}/${rows.length} baris tersimpan\r`);
+    process.stdout.write(`  ${label}: ${ok}/${urut.length} baris tersimpan (${Math.round((Date.now() - mulai) / 1000)} detik)\r`);
+    if (i + UKURAN_BATCH < urut.length) await tidur(JEDA_BATCH_MS);
   }
-  console.log(`  ${label}: ${ok}/${rows.length} baris tersimpan${gagal ? `, ${gagal} GAGAL` : ""}${errorPertama ? `\n    error pertama: ${errorPertama}` : ""}`);
+  console.log(`  ${label}: ${ok}/${urut.length} baris tersimpan dalam ${Math.round((Date.now() - mulai) / 1000)} detik${gagal ? `, ${gagal} GAGAL` : ""}${errorPertama ? `\n    error pertama: ${errorPertama}` : ""}`);
+  if (kolomTs && perHari.size) {
+    console.log(`  per hari (baris yang benar-benar masuk):`);
+    const hari = [...perHari.entries()].sort((x, y) => (x[0] < y[0] ? -1 : 1));
+    for (let i = 0; i < hari.length; i += 6) {
+      console.log("    " + hari.slice(i, i + 6).map(([d, n]) => `${d} ${String(n).padStart(5)}`).join("  |  "));
+    }
+  }
   return { ok, gagal, errorPertama };
+}
+
+// Rentang data yang benar-benar ada (query supabase/cek-rentang-data.sql).
+async function cekRentangDb(db, judul) {
+  const pos = await db.rentang("positions", "ts");
+  const total = await db.hitung("positions");
+  const seedRows = await db.hitung("positions", "?trip_id=is.null");
+  const adu = await db.rentang("pengaduan", "created_at");
+  const aduTotal = await db.hitung("pengaduan");
+  console.log(`\n== ${judul} ==`);
+  console.log(`  select min(ts), max(ts), count(*) from positions;        -> ${pos.min ?? "-"} | ${pos.max ?? "-"} | ${total} (seed ${seedRows}, simulator ${total - seedRows})`);
+  console.log(`  select min(created_at), max(created_at), count(*) from pengaduan; -> ${adu.min ?? "-"} | ${adu.max ?? "-"} | ${aduTotal}`);
 }
 
 // Cek langsung ke database setelah menulis: hasil apa adanya, bukan rencana.
@@ -129,6 +170,8 @@ async function main() {
   const db = klien();
   const apply = process.argv.includes("--apply");
   console.log(apply ? "MODE: --apply (menulis ke database)" : "MODE: dry run (tidak menulis)");
+
+  await cekRentangDb(db, "Rentang data SEBELUM seed (apa adanya)");
 
   // ---------- 1. Identitas armada ----------
   const trukAda = await db.get("trucks", "?select=id,plat,nama,tipe,status&limit=1000");
@@ -221,7 +264,7 @@ async function main() {
   });
   const hasilTulis = {};
   hasilTulis.schedules = await tahap("tulis schedules", () => tulisBertahap(db, "schedules", seed.schedules, "schedules"));
-  hasilTulis.positions = await tahap("tulis positions (telemetri + insiden)", () => tulisBertahap(db, "positions", seed.positions, "positions"));
+  hasilTulis.positions = await tahap("tulis positions (telemetri + insiden)", () => tulisBertahap(db, "positions", seed.positions, "positions", "ts"));
   hasilTulis.pengaduan = await tahap("tulis pengaduan", () => tulisBertahap(db, "pengaduan", seed.pengaduan, "pengaduan"));
   hasilTulis.agent_runs = await tahap("tulis agent_runs", () => tulisBertahap(db, "agent_runs", seed.agentRuns, "agent_runs"));
   const adaGagal = Object.values(hasilTulis).some((h) => h.gagal > 0);
@@ -241,7 +284,9 @@ async function main() {
   console.log(`  pengaduan ditolak saat truk diam: ${h.ditolakDiam} dari ${h.ditolakTotal}`);
   console.log(jaminan.lulus ? "  SEMUA JAMINAN TERPENUHI (di generator)." : "  ADA JAMINAN YANG GAGAL (lihat di atas).");
 
-  // Pembuktian di database: query yang sama dengan supabase/cek-insiden.sql.
+  // Pembuktian di database: query yang sama dengan supabase/cek-insiden.sql
+  // dan cek-rentang-data.sql.
+  await cekRentangDb(db, "Rentang data SESUDAH seed (apa adanya)");
   const db2 = await tahap("cek database setelah menulis", () => cekInsidenDb(db));
   const cocok = db2.insiden7 >= 3 && db2.insiden30 >= 6 && db2.insiden90 >= 9;
   console.log(cocok ? "\nDATABASE TERBUKTI berisi insiden untuk rentang 7/30/90 hari." : "\nPERINGATAN: database belum memenuhi minimum insiden 7/30/90 hari; periksa error tulis di atas dan simulator (retensi menghapus positions?).");

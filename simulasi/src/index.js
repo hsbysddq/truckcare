@@ -174,9 +174,36 @@ async function buatTripBaru(st) {
   return data;
 }
 
+// Jam kerja (WIB): tiap truk punya giliran tugas supaya tidak semua bergerak
+// bersamaan; di luar jendela dan pada malam hari (22-05) truk DIAM
+// (0 km/jam, status berhenti) dan hanya menulis satu posisi per menit.
+const JENDELA_TUGAS = [[5, 14], [8, 18], [11, 21]];
+let tickTugas = 0;
+function jamWIB() {
+  return Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Jakarta' })) % 24;
+}
+function sedangBertugas(indeks) {
+  const jam = jamWIB();
+  if (jam >= 22 || jam < 5) return false;
+  const [mulai, selesai] = JENDELA_TUGAS[indeks % JENDELA_TUGAS.length];
+  return jam >= mulai && jam < selesai;
+}
+
 async function kirimPosisi() {
   const rows = [];
+  tickTugas += 1;
+  let indeks = -1;
   for (const [plat, st] of trukState) {
+    indeks += 1;
+    if (!sedangBertugas(indeks)) {
+      // Diam di posisi terakhir: satu baris per ~60 detik saja.
+      if (tickTugas % Math.max(1, Math.round(60 / INTERVAL_DETIK)) !== 0) continue;
+      const diam = posisiDiMenit(st.rute.waypoints, st.menit) ?? posisiDiMenit(st.rute.waypoints, 0);
+      if (diam?.posisi) {
+        rows.push({ trip_id: st.tripId, truk_id: st.trukId, lat: diam.posisi.lat, lon: diam.posisi.lon, kecepatan: 0, status: 'berhenti', ts: new Date().toISOString() });
+      }
+      continue;
+    }
     const hasil = posisiDiMenit(st.rute.waypoints, st.menit);
     if (!hasil) {
       st.menit += MENIT_PER_DETIK * INTERVAL_DETIK;
