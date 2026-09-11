@@ -20,6 +20,23 @@ datanya dari simulasi GPS. Dibuat untuk AI HackFest 2026.
 
 </div>
 
+## Preview
+
+<table>
+  <tr>
+    <td><img src="public/preview/overview.png" alt="Dashboard Overview" width="400"></td>
+    <td><img src="public/preview/armada.png" alt="Armada Detail" width="400"></td>
+  </tr>
+  <tr>
+    <td><img src="public/preview/chat.png" alt="Chat AI" width="400"></td>
+    <td><img src="public/preview/analitik.png" alt="Analitik Live" width="400"></td>
+  </tr>
+  <tr>
+    <td><img src="public/preview/pengaduan.png" alt="Form Pengaduan" width="400"></td>
+    <td><img src="public/preview/pengemudi.png" alt="Data Pengemudi" width="400"></td>
+  </tr>
+</table>
+
 ## Fitur
 
 - **Landing publik** (`/`) + **form pengaduan anonim** (`/pengaduan`) dengan
@@ -156,15 +173,9 @@ SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... python3 sup
 
 ## Alur Data
 
-```
-simulasi GPS (VPS) ─▶ Supabase (trucks, schedules, fuel_readings, drivers)
-                            │
-      dashboard & route API ◀─┘
-                            ├─▶ Chat AI: tool lokal → fallback OpenClaw (:8765)
-                            └─▶ Bot Telegram (polling)
-
-pengaduan publik (/pengaduan) ─▶ POST /api/pengaduan ─▶ tabel pengaduan
-```
+<p align="center">
+  <img src="public/cara-kerja.svg" alt="Cara Kerja TruckCare" width="700">
+</p>
 
 ## Catatan Operasional
 
@@ -186,6 +197,17 @@ pengaduan publik (/pengaduan) ─▶ POST /api/pengaduan ─▶ tabel pengaduan
   troubleshooting.
 - [`AGENTS.md`](AGENTS.md) — catatan wajib untuk agen/AI yang menulis kode di
   repo ini.
+
+## Acknowledgments
+
+- [Next.js](https://nextjs.org) — framework React
+- [Supabase](https://supabase.com) — database, auth, storage
+- [Tailwind CSS](https://tailwindcss.com) — utility-first CSS
+- [Leaflet](https://leafletjs.com) — peta interaktif
+- [Recharts](https://recharts.org) — grafik React
+- [Lucide](https://lucide.dev) — ikon
+- [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) — captcha gratis
+- [Vercel](https://vercel.com) — hosting & deploy
 
 ## Lisensi
 
