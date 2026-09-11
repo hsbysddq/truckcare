@@ -1,10 +1,24 @@
+<div align="center">
+
 # TruckCare (Circle T)
 
 Aplikasi web monitoring armada truk: dashboard operator, form pengaduan publik,
 chat AI (dengan fallback LLM di VPS), bot Telegram, dan analitik live yang sumber
 datanya dari simulasi GPS. Dibuat untuk AI HackFest 2026.
 
-Produksi: <https://circletindonesia.vercel.app>
+[![Production](https://img.shields.io/badge/production-live-brightgreen?style=for-the-badge&logo=vercel)](https://circletindonesia.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com)
+[![License](https://img.shields.io/badge/license-private-red?style=for-the-badge)](#lisensi)
+
+<br>
+
+[![Deployed with Vercel](https://img.shields.io/badge/deployed_with-vercel-000000?style=for-the-badge&logo=vercel)](https://vercel.com)
+[![AI HackFest 2026](https://img.shields.io/badge/AI_HackFest-2026-purple?style=for-the-badge)](#)
+
+</div>
 
 ## Fitur
 
